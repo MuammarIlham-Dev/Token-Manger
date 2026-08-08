@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "AI Token Timer"
+description = "A personal progressive web app for organizing AI token profiles by IDE, agent, and email, with live refresh countdowns after usage limits are reached."
+version = "1.0.0"
+id = "artifacts/ai-token-timer"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24437
+
+[services.development]
+run = "pnpm --filter @workspace/ai-token-timer run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ai-token-timer", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ai-token-timer/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24437"
+BASE_PATH = "/"
