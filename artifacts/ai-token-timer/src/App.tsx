@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import {
-  Activity, AlertTriangle, Check, ChevronDown, CircleHelp, Clock3, Code2,
+  Activity, AlertTriangle, Check, CircleHelp, Clock3, Code2,
   Gauge, KeyRound, Laptop2, Mail, Menu, MoreHorizontal, Pencil, Plus, Search,
   Settings2, ShieldCheck, Sparkles, TimerReset, Trash2, X, Zap,
 } from 'lucide-react';
@@ -18,7 +18,7 @@ type Profile = {
   name: string;
   email: string;
   agent: string;
-  duration: number;
+  durationMinutes: number;
   status: Status;
   limitedUntil: number | null;
   createdAt: number;
@@ -26,22 +26,37 @@ type Profile = {
 
 const STORAGE_KEY = 'ai-token-timer-profiles-v1';
 const queryClient = new QueryClient();
-const ideOptions = ['Cursor', 'Windsurf', 'VS Code', 'Zed', 'JetBrains'];
-const agentOptions = ['Claude', 'GPT-4o', 'Gemini', 'Cohere', 'Other'];
-const durationOptions = [1, 4, 8, 12, 24, 48];
 
 const seededProfiles: Profile[] = [
-  { id: 'p-claude', ide: 'Cursor', name: 'Main build account', email: 'dev@northstar.studio', agent: 'Claude', duration: 8, status: 'ready', limitedUntil: null, createdAt: Date.now() - 86400000 * 4 },
-  { id: 'p-gpt', ide: 'Windsurf', name: 'Side projects', email: 'hello@northstar.studio', agent: 'GPT-4o', duration: 4, status: 'limited', limitedUntil: Date.now() + 1000 * 60 * 47 + 1000 * 32, createdAt: Date.now() - 86400000 * 2 },
-  { id: 'p-gemini', ide: 'VS Code', name: 'Experiments', email: 'lab@northstar.studio', agent: 'Gemini', duration: 12, status: 'ready', limitedUntil: null, createdAt: Date.now() - 86400000 },
+  { id: 'p-claude', ide: 'Cursor', name: 'Main build account', email: 'dev@northstar.studio', agent: 'Claude', durationMinutes: 480, status: 'ready', limitedUntil: null, createdAt: Date.now() - 86400000 * 4 },
+  { id: 'p-gpt', ide: 'Windsurf', name: 'Side projects', email: 'hello@northstar.studio', agent: 'GPT-4o', durationMinutes: 240, status: 'limited', limitedUntil: Date.now() + 1000 * 60 * 47 + 1000 * 32, createdAt: Date.now() - 86400000 * 2 },
+  { id: 'p-gemini', ide: 'VS Code', name: 'Experiments', email: 'lab@northstar.studio', agent: 'Gemini', durationMinutes: 720, status: 'ready', limitedUntil: null, createdAt: Date.now() - 86400000 },
 ];
 
 function loadProfiles(): Profile[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored) as Profile[];
+    if (stored) {
+      const parsed = JSON.parse(stored) as Array<Profile & { duration?: number }>;
+      return parsed.map((profile) => ({
+        ...profile,
+        durationMinutes: profile.durationMinutes ?? Math.max(1, Math.round((profile.duration ?? 1) * 60)),
+      }));
+    }
   } catch { /* use the considered defaults if storage is unavailable */ }
   return seededProfiles;
+}
+
+function formatDuration(totalMinutes: number) {
+  const days = Math.floor(totalMinutes / 1440);
+  const minutes = totalMinutes % 1440;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (remainingMinutes || parts.length === 0) parts.push(`${remainingMinutes}m`);
+  return parts.join(' ');
 }
 
 function formatCountdown(milliseconds: number) {
@@ -71,11 +86,22 @@ function AppLogo() {
   );
 }
 
-function Sidebar({ count, onAdd }: { count: number; onAdd: () => void }) {
+function Sidebar({ profiles, onAdd }: { profiles: Profile[]; onAdd: () => void }) {
   const nav = [
-    { label: 'Profiles', icon: KeyRound, active: true, detail: String(count).padStart(2, '0') },
+    { label: 'Profiles', icon: KeyRound, active: true, detail: String(profiles.length).padStart(2, '0') },
     { label: 'Activity log', icon: Activity, active: false, detail: '' },
   ];
+  const groupedProfiles = useMemo(() => {
+    const groups = new Map<string, Map<string, Set<string>>>();
+    profiles.forEach((profile) => {
+      if (!groups.has(profile.ide)) groups.set(profile.ide, new Map());
+      const emails = groups.get(profile.ide)!;
+      if (!emails.has(profile.email)) emails.set(profile.email, new Set());
+      emails.get(profile.email)!.add(profile.agent);
+    });
+    return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right));
+  }, [profiles]);
+
   return (
     <aside className="hidden w-[248px] shrink-0 flex-col bg-[hsl(var(--sidebar))] px-5 py-6 text-[hsl(var(--sidebar-foreground))] md:flex">
       <AppLogo />
@@ -90,6 +116,39 @@ function Sidebar({ count, onAdd }: { count: number; onAdd: () => void }) {
             </div>
           ))}
         </nav>
+      </div>
+      <div className="mt-8 min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="mono mb-3 px-3 text-[9px] font-medium uppercase tracking-[.2em] text-[hsl(var(--sidebar-foreground)/.42)]">Connections</div>
+        <div className="space-y-4">
+          {groupedProfiles.map(([ide, emails]) => (
+            <div key={ide}>
+              <div className="flex items-center gap-2 px-3 text-[11px] font-extrabold text-[hsl(var(--sidebar-foreground)/.86)]">
+                <Laptop2 size={13} className="text-[hsl(var(--sidebar-primary))]" />
+                <span className="truncate">{ide}</span>
+                <span className="mono ml-auto text-[9px] text-[hsl(var(--sidebar-foreground)/.35)]">{Array.from(emails.values()).reduce((total, agents) => total + agents.size, 0)}</span>
+              </div>
+              <div className="mt-2 space-y-2 border-l border-[hsl(var(--sidebar-border))] ml-[18px] pl-3">
+                {Array.from(emails.entries()).map(([email, agents]) => (
+                  <div key={`${ide}-${email}`} className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[hsl(var(--sidebar-foreground)/.58)]">
+                      <Mail size={11} />
+                      <span className="truncate">{email}</span>
+                    </div>
+                    <div className="mt-1.5 space-y-1 pl-[18px]">
+                      {Array.from(agents).sort().map((agent) => (
+                        <div key={`${email}-${agent}`} className="flex items-center gap-1.5 text-[10px] text-[hsl(var(--sidebar-foreground)/.4)]">
+                          <Sparkles size={10} className="shrink-0 text-[hsl(var(--accent))]" />
+                          <span className="truncate">{agent}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {groupedProfiles.length === 0 && <p className="px-3 text-[10px] leading-relaxed text-[hsl(var(--sidebar-foreground)/.42)]">Add a profile to build your connection map.</p>}
+        </div>
       </div>
       <div className="mt-auto">
         <div className="mb-5 rounded-2xl border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-accent)/.5)] p-4">
@@ -128,7 +187,7 @@ function ProfileCard({ profile, now, onEdit, onDelete, onLimit, onReset }: {
 }) {
   const remaining = profile.limitedUntil ? profile.limitedUntil - now : 0;
   const isLimited = profile.status === 'limited' && remaining > 0;
-  const progress = isLimited ? Math.min(100, Math.max(2, (remaining / (profile.duration * 3600000)) * 100)) : 0;
+  const progress = isLimited ? Math.min(100, Math.max(2, (remaining / (profile.durationMinutes * 60000)) * 100)) : 0;
   return (
     <article className={`card-shadow animate-rise group relative overflow-hidden rounded-2xl border bg-[hsl(var(--card))] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_hsl(205_30%_22%/.12)] ${isLimited ? 'border-[hsl(var(--accent)/.48)]' : 'border-[hsl(var(--card-border))]'}`} data-testid={`card-profile-${profile.id}`}>
       {isLimited && <div className="scan-line" />}
@@ -158,7 +217,7 @@ function ProfileCard({ profile, now, onEdit, onDelete, onLimit, onReset }: {
             <div className="mt-3 h-1 overflow-hidden rounded-full bg-[hsl(var(--accent)/.18)]"><div className="h-full rounded-full bg-[hsl(var(--accent))] transition-[width] duration-1000 ease-linear" style={{ width: `${progress}%` }} /></div>
           </div>
         ) : (
-          <div className="mt-5 flex items-center gap-2 rounded-xl bg-[hsl(var(--primary)/.07)] px-3.5 py-3 text-[11px] font-bold text-[hsl(var(--primary))]"><Check size={14} /> Ready to use <span className="ml-auto mono text-[9px] font-normal text-[hsl(var(--muted-foreground))]">{profile.duration}h window</span></div>
+          <div className="mt-5 flex items-center gap-2 rounded-xl bg-[hsl(var(--primary)/.07)] px-3.5 py-3 text-[11px] font-bold text-[hsl(var(--primary))]"><Check size={14} /> Ready to use <span className="ml-auto mono text-[9px] font-normal text-[hsl(var(--muted-foreground))]">{formatDuration(profile.durationMinutes)} window</span></div>
         )}
         <div className="mt-4 flex items-center justify-between">
           {isLimited ? <button type="button" onClick={onReset} className="focus-ring inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-extrabold text-[hsl(var(--primary))] transition-colors hover:bg-[hsl(var(--primary)/.09)]" data-testid={`button-reset-${profile.id}`}><TimerReset size={14} /> Reset timer</button>
@@ -173,16 +232,34 @@ function ProfileCard({ profile, now, onEdit, onDelete, onLimit, onReset }: {
   );
 }
 
-type FormState = Omit<Profile, 'id' | 'status' | 'limitedUntil' | 'createdAt'>;
-const blankForm: FormState = { ide: 'Cursor', name: '', email: '', agent: 'Claude', duration: 8 };
+type FormState = {
+  ide: string;
+  name: string;
+  email: string;
+  agent: string;
+  durationDays: number;
+  durationMinutes: number;
+};
+const blankForm: FormState = { ide: '', name: '', email: '', agent: '', durationDays: 0, durationMinutes: 60 };
 
 function ProfileModal({ profile, onClose, onSave }: { profile: Profile | null; onClose: () => void; onSave: (form: FormState) => void }) {
-  const [form, setForm] = useState<FormState>(profile ? { ide: profile.ide, name: profile.name, email: profile.email, agent: profile.agent, duration: profile.duration } : blankForm);
+  const [form, setForm] = useState<FormState>(profile ? {
+    ide: profile.ide,
+    name: profile.name,
+    email: profile.email,
+    agent: profile.agent,
+    durationDays: Math.floor(profile.durationMinutes / 1440),
+    durationMinutes: profile.durationMinutes % 1440,
+  } : blankForm);
   const [error, setError] = useState('');
   const update = (key: keyof FormState, value: string | number) => setForm((current) => ({ ...current, [key]: value }));
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!form.name.trim() || !form.email.trim()) { setError('Add a name and email identity to continue.'); return; }
+    if (!form.ide.trim() || !form.name.trim() || !form.email.trim() || !form.agent.trim()) { setError('Fill in the IDE, name, email, and agent to continue.'); return; }
+    if (!Number.isFinite(form.durationDays) || !Number.isFinite(form.durationMinutes) || form.durationDays < 0 || form.durationMinutes < 0 || form.durationMinutes > 1439 || (form.durationDays === 0 && form.durationMinutes === 0)) {
+      setError('Set a refresh duration of at least 1 minute. Minutes must be between 0 and 1439.');
+      return;
+    }
     onSave({ ...form, name: form.name.trim(), email: form.email.trim() });
   }
   return (
@@ -191,13 +268,20 @@ function ProfileModal({ profile, onClose, onSave }: { profile: Profile | null; o
         <div className="mb-7 flex items-start justify-between"><div><div className="mono mb-2 text-[9px] uppercase tracking-[.18em] text-[hsl(var(--primary))]">{profile ? 'Update profile' : 'New access profile'}</div><h2 id="profile-modal-title" className="text-[25px] font-extrabold tracking-[-.05em]">{profile ? 'Tune this connection' : 'Keep an account close'}</h2><p className="mt-1.5 text-[12px] text-[hsl(var(--muted-foreground))]">A few details is all the timer needs.</p></div><button type="button" onClick={onClose} className="focus-ring rounded-xl p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" data-testid="button-close-modal"><X size={18} /></button></div>
         <form onSubmit={submit} className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">IDE</span><div className="relative"><Code2 className="pointer-events-none absolute left-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /><select value={form.ide} onChange={(e) => update('ide', e.target.value)} className="focus-ring h-11 w-full appearance-none rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] pl-10 pr-8 text-[12px] font-bold" data-testid="select-ide">{ideOptions.map((ide) => <option key={ide}>{ide}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /></div></label>
+            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">IDE</span><div className="relative"><Code2 className="pointer-events-none absolute left-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /><input value={form.ide} onChange={(e) => update('ide', e.target.value)} placeholder="e.g. Cursor" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] pl-10 pr-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" data-testid="input-ide" /></div></label>
             <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Profile name</span><input value={form.name} onChange={(e) => update('name', e.target.value)} placeholder="e.g. Main build account" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" data-testid="input-profile-name" /></label>
           </div>
           <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Email identity</span><div className="relative"><Mail className="pointer-events-none absolute left-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /><input type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="you@your-workspace.dev" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-10 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" data-testid="input-email" /></div></label>
           <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Agent</span><select value={form.agent} onChange={(e) => update('agent', e.target.value)} className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold" data-testid="select-agent">{agentOptions.map((agent) => <option key={agent}>{agent}</option>)}</select></label>
-            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Refresh duration</span><div className="relative"><select value={form.duration} onChange={(e) => update('duration', Number(e.target.value))} className="focus-ring h-11 w-full appearance-none rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 pr-8 text-[12px] font-bold" data-testid="select-duration">{durationOptions.map((duration) => <option key={duration} value={duration}>{duration} {duration === 1 ? 'hour' : 'hours'}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /></div></label>
+            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Agent</span><input value={form.agent} onChange={(e) => update('agent', e.target.value)} placeholder="e.g. Claude" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" data-testid="input-agent" /></label>
+            <div className="sm:col-span-2">
+              <span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Refresh duration</span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="relative block"><span className="sr-only">Days</span><input type="number" min="0" step="1" value={form.durationDays} onChange={(e) => update('durationDays', Number(e.target.value))} className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 pr-14 text-[12px] font-bold" data-testid="input-duration-days" /><span className="pointer-events-none absolute right-3 top-3 text-[10px] font-bold text-[hsl(var(--muted-foreground))]">days</span></label>
+                <label className="relative block"><span className="sr-only">Minutes</span><input type="number" min="0" max="1439" step="1" value={form.durationMinutes} onChange={(e) => update('durationMinutes', Number(e.target.value))} className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 pr-20 text-[12px] font-bold" data-testid="input-duration-minutes" /><span className="pointer-events-none absolute right-3 top-3 text-[10px] font-bold text-[hsl(var(--muted-foreground))]">minutes</span></label>
+              </div>
+              <p className="mt-1.5 text-[10px] text-[hsl(var(--muted-foreground))]">Use any whole-day and minute combination. Minutes can be 0–1439.</p>
+            </div>
           </div>
           {error && <div className="rounded-xl bg-[hsl(var(--destructive)/.1)] px-3 py-2 text-[11px] font-bold text-[hsl(var(--destructive))]">{error}</div>}
           <div className="flex gap-3 pt-2"><button type="button" onClick={onClose} className="focus-ring flex-1 rounded-xl border border-[hsl(var(--border))] py-3 text-[12px] font-extrabold text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))]" data-testid="button-cancel-modal">Cancel</button><button type="submit" className="focus-ring flex-[1.5] rounded-xl bg-[hsl(var(--primary))] py-3 text-[12px] font-extrabold text-[hsl(var(--primary-foreground))] shadow-[0_8px_18px_hsl(var(--primary)/.2)] transition-transform hover:-translate-y-0.5" data-testid="button-save-profile"><Check size={15} className="mr-1 inline" />{profile ? 'Save changes' : 'Add profile'}</button></div>
@@ -234,17 +318,24 @@ function Home() {
   const readyCount = profiles.length - limitedCount;
 
   function saveProfile(form: FormState) {
-    if (modalProfile) setProfiles((current) => current.map((p) => p.id === modalProfile.id ? { ...p, ...form } : p));
-    else setProfiles((current) => [...current, { ...form, id: `p-${Date.now()}`, status: 'ready', limitedUntil: null, createdAt: Date.now() }]);
+    const normalizedForm = {
+      ide: form.ide.trim(),
+      name: form.name.trim(),
+      email: form.email.trim(),
+      agent: form.agent.trim(),
+      durationMinutes: form.durationDays * 1440 + form.durationMinutes,
+    };
+    if (modalProfile) setProfiles((current) => current.map((p) => p.id === modalProfile.id ? { ...p, ...normalizedForm } : p));
+    else setProfiles((current) => [...current, { ...normalizedForm, id: `p-${Date.now()}`, status: 'ready', limitedUntil: null, createdAt: Date.now() }]);
     setModalProfile(undefined);
   }
-  function limitProfile(id: string) { setProfiles((current) => current.map((p) => p.id === id ? { ...p, status: 'limited', limitedUntil: Date.now() + p.duration * 3600000 } : p)); }
+  function limitProfile(id: string) { setProfiles((current) => current.map((p) => p.id === id ? { ...p, status: 'limited', limitedUntil: Date.now() + p.durationMinutes * 60000 } : p)); }
   function resetProfile(id: string) { setProfiles((current) => current.map((p) => p.id === id ? { ...p, status: 'ready', limitedUntil: null } : p)); }
 
   return (
     <div className="app-shell flex text-[hsl(var(--foreground))]">
       <div className="noise" />
-      <Sidebar count={profiles.length} onAdd={() => setModalProfile(null)} />
+      <Sidebar profiles={profiles} onAdd={() => setModalProfile(null)} />
       {mobileNav && <div className="fixed inset-0 z-20 bg-[hsl(205_34%_11%/.35)] md:hidden" onClick={() => setMobileNav(false)}><div className="h-full w-[270px] bg-[hsl(var(--sidebar))] p-5" onClick={(e) => e.stopPropagation()}><AppLogo /><div className="mt-12 mono text-[9px] uppercase tracking-[.2em] text-[hsl(var(--sidebar-foreground)/.42)]">Workspace</div><button onClick={() => { setMobileNav(false); setFilter('all'); }} className="mt-3 flex w-full items-center gap-3 rounded-xl bg-[hsl(var(--sidebar-accent))] px-3 py-3 text-left text-[13px] font-bold text-[hsl(var(--sidebar-foreground))]" data-testid="nav-mobile-profiles"><KeyRound size={16} /> Profiles <span className="mono ml-auto text-[10px] opacity-50">{profiles.length}</span></button></div></div>}
       <main className="min-w-0 flex-1">
         <Topbar onAdd={() => setModalProfile(null)} onMenu={() => setMobileNav(true)} />
