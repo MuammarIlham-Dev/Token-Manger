@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "BMU0EJPl0E-xhZI8HCp1Z"
+uri = "file://.agents/outputs/ai-token-timer-code.zip"
+type = "unspecified"
+title = "AI Token Timer source code"
+description = "Downloadable source archive containing the editable app code, PWA files, package configuration, and artifact settings. Dependencies and build caches are excluded."
