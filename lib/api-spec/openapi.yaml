@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: profiles
+    description: Profile operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /profiles:
+    get:
+      operationId: getProfiles
+      tags: [profiles]
+      summary: List all profiles
+      responses:
+        "200":
+          description: List of profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Profile"
+    post:
+      operationId: createProfile
+      tags: [profiles]
+      summary: Create a new profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfileRequest"
+      responses:
+        "201":
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+  /profiles/{id}:
+    patch:
+      operationId: updateProfile
+      tags: [profiles]
+      summary: Update a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    delete:
+      operationId: deleteProfile
+      tags: [profiles]
+      summary: Delete a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Profile deleted
 components:
   schemas:
     HealthStatus:
@@ -33,4 +103,82 @@ components:
           type: string
       required:
         - status
-
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        ide:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        agent:
+          type: string
+        durationMinutes:
+          type: number
+        status:
+          type: string
+          enum: [ready, limited]
+        limitedUntil:
+          type: number
+          nullable: true
+        createdAt:
+          type: number
+      required:
+        - id
+        - ide
+        - name
+        - email
+        - agent
+        - durationMinutes
+        - status
+        - createdAt
+    CreateProfileRequest:
+      type: object
+      properties:
+        ide:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        agent:
+          type: string
+        durationMinutes:
+          type: number
+        status:
+          type: string
+          enum: [ready, limited]
+        limitedUntil:
+          type: number
+          nullable: true
+        createdAt:
+          type: number
+      required:
+        - ide
+        - name
+        - email
+        - agent
+        - durationMinutes
+        - createdAt
+    UpdateProfileRequest:
+      type: object
+      properties:
+        ide:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        agent:
+          type: string
+        durationMinutes:
+          type: number
+        status:
+          type: string
+          enum: [ready, limited]
+        limitedUntil:
+          type: number
+          nullable: true
