@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-token-timer-shell-v1';
+const CACHE_NAME = 'ai-token-timer-shell-v2';
 const SHELL = ['./', './index.html', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
