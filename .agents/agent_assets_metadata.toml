@@ -14,3 +14,10 @@ uri = "file://artifacts/ai-token-timer/ai-token-timer-source.zip"
 type = "unspecified"
 title = "AI Token Timer source code"
 description = "Download the complete editable source archive. Dependencies and build caches are excluded."
+
+[[outputs]]
+id = "BC3FvaQYoNoT6jnuF1C6Z"
+uri = "file://artifacts/ai-token-timer/public/ai-token-timer-source.zip"
+type = "unspecified"
+title = "AI Token Timer source code"
+description = "Latest editable source archive for the AI Token Timer app."
