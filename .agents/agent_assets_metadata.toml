@@ -7,3 +7,10 @@ uri = "file://.agents/outputs/ai-token-timer-code.zip"
 type = "unspecified"
 title = "AI Token Timer source code"
 description = "Downloadable source archive containing the editable app code, PWA files, package configuration, and artifact settings. Dependencies and build caches are excluded."
+
+[[outputs]]
+id = "zdui32Z2HrVbDlu_CDKxx"
+uri = "file://artifacts/ai-token-timer/ai-token-timer-source.zip"
+type = "unspecified"
+title = "AI Token Timer source code"
+description = "Download the complete editable source archive. Dependencies and build caches are excluded."
