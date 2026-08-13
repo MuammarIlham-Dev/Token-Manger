@@ -6,7 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import {
   Activity, AlertTriangle, Check, CircleHelp, Clock3, Code2,
-  Download, Gauge, KeyRound, Laptop2, Mail, Menu, MoreHorizontal, Pencil, Plus, Search,
+  Download, Gauge, KeyRound, Laptop2, Mail, Menu, MoreHorizontal, Pencil, Plus, Search, Share2,
   Settings2, ShieldCheck, Sparkles, TimerReset, Trash2, X, Zap,
 } from 'lucide-react';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
@@ -87,6 +87,47 @@ async function downloadSourceCode() {
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   } catch {
     window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+  }
+}
+
+async function shareSourceCode() {
+  const sourceUrl = `${import.meta.env.BASE_URL}ai-token-timer-source.zip`;
+  const shareUrl = new URL(sourceUrl, window.location.href).href;
+  try {
+    const response = await fetch(sourceUrl);
+    if (!response.ok) throw new Error('Source archive unavailable');
+    const blob = await response.blob();
+    const file = new File([blob], 'ai-token-timer-source.zip', { type: 'application/zip' });
+    const shareNavigator = navigator as Navigator & {
+      share?: (data: ShareData) => Promise<void>;
+      canShare?: (data?: ShareData) => boolean;
+    };
+    if (shareNavigator.share && (!shareNavigator.canShare || shareNavigator.canShare({ files: [file] }))) {
+      await shareNavigator.share({
+        files: [file],
+        title: 'AI Token Timer source code',
+        text: 'AI Token Timer source code ZIP',
+      });
+      return;
+    }
+    if (shareNavigator.share) {
+      await shareNavigator.share({
+        title: 'AI Token Timer source code',
+        text: 'AI Token Timer source code ZIP',
+        url: shareUrl,
+      });
+      return;
+    }
+    await navigator.clipboard.writeText(shareUrl);
+    window.alert('The ZIP link was copied. You can paste it anywhere to share.');
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      window.alert('The ZIP link was copied. You can paste it anywhere to share.');
+    } catch {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
   }
 }
 
@@ -359,7 +400,7 @@ function Home() {
       <main className="min-w-0 flex-1">
         <Topbar onAdd={() => setModalProfile(null)} onMenu={() => setMobileNav(true)} />
         <div className="mx-auto max-w-[1220px] px-5 pb-12 pt-7 sm:px-8 md:px-12 md:pt-12 lg:px-16">
-          <div className="animate-rise flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="mono mb-3 flex items-center gap-2 text-[9px] font-medium uppercase tracking-[.2em] text-[hsl(var(--primary))]"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" /> Live workspace</div><h1 className="text-[32px] font-extrabold tracking-[-.065em] sm:text-[40px]">Keep your access <span className="text-[hsl(var(--primary))]">within reach.</span></h1><p className="mt-2 max-w-[500px] text-[13px] leading-relaxed text-[hsl(var(--muted-foreground))]">A quiet place for the accounts, agents, and reset windows that keep your coding flow moving.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void downloadSourceCode()} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card)/.65)] px-4 text-[12px] font-extrabold text-[hsl(var(--primary))] transition-all hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/.08)]" data-testid="button-download-source"><Download size={15} /> Download code</button><button type="button" onClick={() => setModalProfile(null)} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 text-[12px] font-extrabold text-[hsl(var(--primary-foreground))] shadow-[0_8px_20px_hsl(var(--primary)/.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_24px_hsl(var(--primary)/.27)]" data-testid="button-add-profile"><Plus size={16} strokeWidth={2.8} /> Add profile</button></div></div>
+          <div className="animate-rise flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="mono mb-3 flex items-center gap-2 text-[9px] font-medium uppercase tracking-[.2em] text-[hsl(var(--primary))]"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" /> Live workspace</div><h1 className="text-[32px] font-extrabold tracking-[-.065em] sm:text-[40px]">Keep your access <span className="text-[hsl(var(--primary))]">within reach.</span></h1><p className="mt-2 max-w-[500px] text-[13px] leading-relaxed text-[hsl(var(--muted-foreground))]">A quiet place for the accounts, agents, and reset windows that keep your coding flow moving.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void shareSourceCode()} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card)/.65)] px-4 text-[12px] font-extrabold text-[hsl(var(--primary))] transition-all hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/.08)]" data-testid="button-share-source"><Share2 size={15} /> Share ZIP</button><button type="button" onClick={() => void downloadSourceCode()} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card)/.65)] px-4 text-[12px] font-extrabold text-[hsl(var(--primary))] transition-all hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/.08)]" data-testid="button-download-source"><Download size={15} /> Download code</button><button type="button" onClick={() => setModalProfile(null)} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 text-[12px] font-extrabold text-[hsl(var(--primary-foreground))] shadow-[0_8px_20px_hsl(var(--primary)/.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_24px_hsl(var(--primary)/.27)]" data-testid="button-add-profile"><Plus size={16} strokeWidth={2.8} /> Add profile</button></div></div>
           <div className="animate-rise animate-rise-1 mt-9 grid gap-3 sm:grid-cols-3">
             <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card)/.7)] p-4"><div className="mono text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Total profiles</div><div className="mt-2 text-[26px] font-extrabold tracking-[-.05em]" data-testid="stat-total">{profiles.length}</div><KeyRound className="absolute right-4 top-4 text-[hsl(var(--primary)/.28)]" size={19} /></div>
             <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card)/.7)] p-4"><div className="mono text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Ready now</div><div className="mt-2 text-[26px] font-extrabold tracking-[-.05em] text-[hsl(var(--primary))]" data-testid="stat-ready">{readyCount}</div><Zap className="absolute right-4 top-4 text-[hsl(var(--primary)/.28)]" size={19} /></div>
