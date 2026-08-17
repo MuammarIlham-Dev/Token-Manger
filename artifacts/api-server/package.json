@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
-    "start": "node --enable-source-maps ./dist/index.mjs",
+    "start": "cross-env DATABASE_URL=file:../../lib/db/local.db node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -15,6 +15,7 @@
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
+    "cross-env": "^10.1.0",
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
     "pino": "^9.14.0",

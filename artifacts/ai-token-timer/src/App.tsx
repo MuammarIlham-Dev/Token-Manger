@@ -14,7 +14,14 @@ import { useGetProfiles, useCreateProfile, useUpdateProfile, useDeleteProfile, t
 
 type Status = 'ready' | 'limited';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 function formatDuration(totalMinutes: number) {
   const days = Math.floor(totalMinutes / 1440);
