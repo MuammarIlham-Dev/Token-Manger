@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -10,42 +10,11 @@ import {
   Settings2, ShieldCheck, Sparkles, TimerReset, Trash2, X, Zap,
 } from 'lucide-react';
 import { Route, Switch, Router as WouterRouter, useLocation, useRoute } from 'wouter';
+import { useGetProfiles, useCreateProfile, useUpdateProfile, useDeleteProfile, type Profile } from '@workspace/api-client-react';
 
 type Status = 'ready' | 'limited';
-type Profile = {
-  id: string;
-  ide: string;
-  name: string;
-  email: string;
-  agent: string;
-  durationMinutes: number;
-  status: Status;
-  limitedUntil: number | null;
-  createdAt: number;
-};
 
-const STORAGE_KEY = 'ai-token-timer-profiles-v1';
 const queryClient = new QueryClient();
-
-const seededProfiles: Profile[] = [
-  { id: 'p-claude', ide: 'Cursor', name: 'Main build account', email: 'dev@northstar.studio', agent: 'Claude', durationMinutes: 480, status: 'ready', limitedUntil: null, createdAt: Date.now() - 86400000 * 4 },
-  { id: 'p-gpt', ide: 'Windsurf', name: 'Side projects', email: 'hello@northstar.studio', agent: 'GPT-4o', durationMinutes: 240, status: 'limited', limitedUntil: Date.now() + 1000 * 60 * 47 + 1000 * 32, createdAt: Date.now() - 86400000 * 2 },
-  { id: 'p-gemini', ide: 'VS Code', name: 'Experiments', email: 'lab@northstar.studio', agent: 'Gemini', durationMinutes: 720, status: 'ready', limitedUntil: null, createdAt: Date.now() - 86400000 },
-];
-
-function loadProfiles(): Profile[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as Array<Profile & { duration?: number }>;
-      return parsed.map((profile) => ({
-        ...profile,
-        durationMinutes: profile.durationMinutes ?? Math.max(1, Math.round((profile.duration ?? 1) * 60)),
-      }));
-    }
-  } catch { /* use the considered defaults if storage is unavailable */ }
-  return seededProfiles;
-}
 
 function formatDuration(totalMinutes: number) {
   const days = Math.floor(totalMinutes / 1440);
@@ -327,22 +296,32 @@ function DeleteModal({ profile, onClose, onConfirm }: { profile: Profile; onClos
 }
 
 function Home() {
-  const [profiles, setProfiles] = useState<Profile[]>(loadProfiles);
+  const queryClient = useQueryClient();
+  const { data: profiles = [] } = useGetProfiles();
+  const { mutateAsync: createProfile } = useCreateProfile();
+  const { mutateAsync: updateProfile } = useUpdateProfile();
+  const { mutateAsync: deleteProfileApi } = useDeleteProfile();
+
   const [now, setNow] = useState(Date.now());
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | Status>('all');
   const [modalProfile, setModalProfile] = useState<Profile | null | undefined>(undefined);
-  const [deleteProfile, setDeleteProfile] = useState<Profile | null>(null);
+  const [profileToDelete, setProfileToDelete] = useState<Profile | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [, navigate] = useLocation();
   const [ideRouteMatch, ideRouteParams] = useRoute('/ide/:ide');
   const selectedIde = ideRouteMatch && ideRouteParams?.ide ? decodeURIComponent(ideRouteParams.ide) : null;
 
   useEffect(() => { const interval = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
-  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles)); }, [profiles]);
+
   useEffect(() => {
-    setProfiles((current) => current.map((profile) => profile.status === 'limited' && profile.limitedUntil && profile.limitedUntil <= now ? { ...profile, status: 'ready', limitedUntil: null } : profile));
-  }, [now]);
+    profiles.forEach((profile) => {
+      if (profile.status === 'limited' && profile.limitedUntil && profile.limitedUntil <= now) {
+        updateProfile({ id: profile.id, data: { status: 'ready', limitedUntil: null } as any })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['/api/profiles'] }));
+      }
+    });
+  }, [now, profiles, updateProfile, queryClient]);
 
   const filteredProfiles = useMemo(() => profiles.filter((profile) => {
     const text = `${profile.name} ${profile.email} ${profile.ide} ${profile.agent}`.toLowerCase();
@@ -351,7 +330,7 @@ function Home() {
   const limitedCount = profiles.filter((p) => p.status === 'limited' && (p.limitedUntil ?? 0) > now).length;
   const readyCount = profiles.length - limitedCount;
 
-  function saveProfile(form: FormState) {
+  async function saveProfile(form: FormState) {
     const normalizedForm = {
       ide: form.ide.trim(),
       name: form.name.trim(),
@@ -359,12 +338,26 @@ function Home() {
       agent: form.agent.trim(),
       durationMinutes: form.durationDays * 1440 + form.durationMinutes,
     };
-    if (modalProfile) setProfiles((current) => current.map((p) => p.id === modalProfile.id ? { ...p, ...normalizedForm } : p));
-    else setProfiles((current) => [...current, { ...normalizedForm, id: `p-${Date.now()}`, status: 'ready', limitedUntil: null, createdAt: Date.now() }]);
+    if (modalProfile) {
+      await updateProfile({ id: modalProfile.id, data: { ...modalProfile, ...normalizedForm } as any });
+    } else {
+      await createProfile({ data: { ...normalizedForm, status: 'ready', limitedUntil: null, createdAt: Date.now() } as any });
+    }
+    queryClient.invalidateQueries({ queryKey: ['/api/profiles'] });
     setModalProfile(undefined);
   }
-  function limitProfile(id: string) { setProfiles((current) => current.map((p) => p.id === id ? { ...p, status: 'limited', limitedUntil: Date.now() + p.durationMinutes * 60000 } : p)); }
-  function resetProfile(id: string) { setProfiles((current) => current.map((p) => p.id === id ? { ...p, status: 'ready', limitedUntil: null } : p)); }
+  async function limitProfile(id: string) { 
+    const p = profiles.find(p => p.id === id);
+    if (!p) return;
+    await updateProfile({ id, data: { status: 'limited', limitedUntil: Date.now() + p.durationMinutes * 60000 } as any }); 
+    queryClient.invalidateQueries({ queryKey: ['/api/profiles'] });
+  }
+  async function resetProfile(id: string) { 
+    const p = profiles.find(p => p.id === id);
+    if (!p) return;
+    await updateProfile({ id, data: { status: 'ready', limitedUntil: null } as any }); 
+    queryClient.invalidateQueries({ queryKey: ['/api/profiles'] });
+  }
   function selectIde(ide: string) {
     setMobileNav(false);
     navigate(selectedIde === ide ? '/' : `/ide/${encodeURIComponent(ide)}`);
@@ -386,13 +379,13 @@ function Home() {
           </div>
           <section className="animate-rise animate-rise-2 mt-10">
             <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="flex items-center gap-2"><h2 className="text-[18px] font-extrabold tracking-[-.035em]">Your profiles</h2>{selectedIde && <span className="rounded-full bg-[hsl(var(--primary)/.1)] px-2.5 py-1 text-[10px] font-extrabold text-[hsl(var(--primary))]">{selectedIde}</span>}</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{filteredProfiles.length} connection{filteredProfiles.length === 1 ? '' : 's'} in view{selectedIde ? ` · ${selectedIde}` : ''}</p></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="pointer-events-none absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={15} /><input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a profile..." className="focus-ring h-9 w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card)/.6)] pl-9 pr-3 text-[11px] font-semibold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))] sm:w-[190px]" data-testid="input-search" /></div><div className="flex rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card)/.6)] p-0.5">{(['all', 'ready', 'limited'] as const).map((option) => <button key={option} type="button" onClick={() => setFilter(option)} className={`focus-ring rounded-md px-3 py-1.5 text-[10px] font-extrabold capitalize transition-colors ${filter === option ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}`} data-testid={`filter-${option}`}>{option === 'all' ? 'All' : option === 'limited' ? 'Cooldown' : 'Ready'}</button>)}</div></div></div>
-            {filteredProfiles.length > 0 ? <div className="grid gap-4 lg:grid-cols-2">{filteredProfiles.map((profile, index) => <div key={profile.id} style={{ animationDelay: `${index * 70}ms` }}><ProfileCard profile={profile} now={now} onEdit={() => setModalProfile(profile)} onDelete={() => setDeleteProfile(profile)} onLimit={() => limitProfile(profile.id)} onReset={() => resetProfile(profile.id)} /></div>)}</div> : <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] px-6 text-center"><div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]"><KeyRound size={24} /></div><h3 className="text-[16px] font-extrabold tracking-[-.03em]">{profiles.length === 0 ? 'Your control room is quiet' : selectedIde ? `No ${selectedIde} profiles match your filters` : 'No profiles match that search'}</h3><p className="mt-2 max-w-[300px] text-[12px] leading-relaxed text-[hsl(var(--muted-foreground))]">{profiles.length === 0 ? 'Add your first AI IDE connection and we will keep an eye on the reset window.' : 'Try a different name, email, IDE, or status filter.'}</p>{profiles.length === 0 && <button type="button" onClick={() => setModalProfile(null)} className="mt-5 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-extrabold text-[hsl(var(--primary-foreground))]" data-testid="button-empty-add"><Plus size={14} className="mr-1 inline" /> Add first profile</button>}</div>}
+            {filteredProfiles.length > 0 ? <div className="grid gap-4 lg:grid-cols-2">{filteredProfiles.map((profile, index) => <div key={profile.id} style={{ animationDelay: `${index * 70}ms` }}><ProfileCard profile={profile} now={now} onEdit={() => setModalProfile(profile)} onDelete={() => setProfileToDelete(profile)} onLimit={() => limitProfile(profile.id)} onReset={() => resetProfile(profile.id)} /></div>)}</div> : <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] px-6 text-center"><div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]"><KeyRound size={24} /></div><h3 className="text-[16px] font-extrabold tracking-[-.03em]">{profiles.length === 0 ? 'Your control room is quiet' : selectedIde ? `No ${selectedIde} profiles match your filters` : 'No profiles match that search'}</h3><p className="mt-2 max-w-[300px] text-[12px] leading-relaxed text-[hsl(var(--muted-foreground))]">{profiles.length === 0 ? 'Add your first AI IDE connection and we will keep an eye on the reset window.' : 'Try a different name, email, IDE, or status filter.'}</p>{profiles.length === 0 && <button type="button" onClick={() => setModalProfile(null)} className="mt-5 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-extrabold text-[hsl(var(--primary-foreground))]" data-testid="button-empty-add"><Plus size={14} className="mr-1 inline" /> Add first profile</button>}</div>}
           </section>
           <footer className="animate-rise animate-rise-3 mt-12 flex flex-col gap-3 border-t border-[hsl(var(--border)/.7)] pt-5 text-[10px] text-[hsl(var(--muted-foreground))] sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2"><ShieldCheck size={13} className="text-[hsl(var(--primary))]" /> Local-first · private by design</div><div className="flex items-center gap-4"><span className="mono">v1.0.0</span><div className="flex items-center gap-1" data-testid="text-help"><CircleHelp size={13} /> How it works</div></div></footer>
         </div>
       </main>
       {modalProfile !== undefined && <ProfileModal profile={modalProfile} onClose={() => setModalProfile(undefined)} onSave={saveProfile} />}
-      {deleteProfile && <DeleteModal profile={deleteProfile} onClose={() => setDeleteProfile(null)} onConfirm={() => { setProfiles((current) => current.filter((p) => p.id !== deleteProfile.id)); setDeleteProfile(null); }} />}
+      {profileToDelete && <DeleteModal profile={profileToDelete} onClose={() => setProfileToDelete(null)} onConfirm={async () => { await deleteProfileApi({ id: profileToDelete.id }); queryClient.invalidateQueries({ queryKey: ['/api/profiles'] }); setProfileToDelete(null); }} />}
     </div>
   );
 }
