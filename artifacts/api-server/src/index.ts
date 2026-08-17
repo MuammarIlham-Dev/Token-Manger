@@ -1,3 +1,10 @@
+import path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+if (!process.env.DATABASE_URL) {
+  // Always point to the canonical lib/db/local.db two levels above artifacts/api-server
+  process.env.DATABASE_URL = `file:${path.resolve(__dirname, "../../../lib/db/local.db")}`;
+}
 import app from "./app";
 import { logger } from "./lib/logger";
 
