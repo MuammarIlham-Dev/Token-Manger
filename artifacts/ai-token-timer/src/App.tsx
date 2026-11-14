@@ -23,15 +23,19 @@ import {
 type StatusFilter = 'all' | 'ready' | 'limited';
 
 function formatDuration(totalMinutes: number) {
-  const days = Math.floor(totalMinutes / 1440);
-  const minutes = totalMinutes % 1440;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
+  const totalHours = Math.ceil(totalMinutes / 60);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
   const parts = [];
   if (days) parts.push(`${days}d`);
   if (hours) parts.push(`${hours}h`);
-  if (remainingMinutes || parts.length === 0) parts.push(`${remainingMinutes}m`);
+  if (parts.length === 0) parts.push('0h');
   return parts.join(' ');
+}
+
+function splitDurationIntoDaysAndHours(totalMinutes: number) {
+  const totalHours = Math.ceil(totalMinutes / 60);
+  return { days: Math.floor(totalHours / 24), hours: totalHours % 24 };
 }
 
 function formatCountdown(milliseconds: number) {
@@ -239,26 +243,26 @@ type FormState = {
   model: string;
   tokenTimerEnabled: boolean;
   tokenDays: number;
-  tokenMinutes: number;
+  tokenHours: number;
   quotaDays: number;
-  quotaMinutes: number;
+  quotaHours: number;
 };
 
 const blankForm: FormState = {
   ide: '', name: '', accountId: '', email: '', model: '', tokenTimerEnabled: false,
-  tokenDays: 0, tokenMinutes: 60, quotaDays: 0, quotaMinutes: 0,
+  tokenDays: 0, tokenHours: 1, quotaDays: 0, quotaHours: 0,
 };
 
-function DurationFields({ label, days, minutes, onDays, onMinutes, testId }: {
-  label: string; days: number; minutes: number; onDays: (value: number) => void;
-  onMinutes: (value: number) => void; testId: string;
+function DurationFields({ label, days, hours, onDays, onHours, testId }: {
+  label: string; days: number; hours: number; onDays: (value: number) => void;
+  onHours: (value: number) => void; testId: string;
 }) {
   return (
     <div>
       <span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">{label}</span>
       <div className="grid grid-cols-2 gap-3">
         <label className="relative block"><span className="sr-only">{label} days</span><input type="number" min="0" max="365000" step="1" value={days} onChange={(event) => onDays(Number(event.target.value))} className="focus-ring h-10 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 pr-12 text-[12px] font-bold" data-testid={`${testId}-days`} /><span className="pointer-events-none absolute right-3 top-3 text-[10px] font-bold text-[hsl(var(--muted-foreground))]">days</span></label>
-        <label className="relative block"><span className="sr-only">{label} minutes</span><input type="number" min="0" max="1439" step="1" value={minutes} onChange={(event) => onMinutes(Number(event.target.value))} className="focus-ring h-10 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 pr-16 text-[12px] font-bold" data-testid={`${testId}-minutes`} /><span className="pointer-events-none absolute right-3 top-3 text-[10px] font-bold text-[hsl(var(--muted-foreground))]">minutes</span></label>
+        <label className="relative block"><span className="sr-only">{label} hours</span><input type="number" min="0" max="23" step="1" value={hours} onChange={(event) => onHours(Number(event.target.value))} className="focus-ring h-10 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 pr-12 text-[12px] font-bold" data-testid={`${testId}-hours`} /><span className="pointer-events-none absolute right-3 top-3 text-[10px] font-bold text-[hsl(var(--muted-foreground))]">hours</span></label>
       </div>
     </div>
   );
@@ -267,13 +271,15 @@ function DurationFields({ label, days, minutes, onDays, onMinutes, testId }: {
 function ProfileModal({ profile, onClose, onSave }: {
   profile: Profile | null; onClose: () => void; onSave: (form: FormState) => Promise<void>;
 }) {
+  const tokenDuration = profile ? splitDurationIntoDaysAndHours(profile.tokenRefreshDurationMinutes) : null;
+  const quotaDuration = profile ? splitDurationIntoDaysAndHours(profile.quotaRefreshDurationMinutes) : null;
   const [form, setForm] = useState<FormState>(profile ? {
     ide: profile.ide, name: profile.name, accountId: profile.accountId,
     email: profile.email, model: profile.model, tokenTimerEnabled: profile.tokenTimerEnabled,
-    tokenDays: Math.floor(profile.tokenRefreshDurationMinutes / 1440),
-    tokenMinutes: profile.tokenRefreshDurationMinutes % 1440,
-    quotaDays: Math.floor(profile.quotaRefreshDurationMinutes / 1440),
-    quotaMinutes: profile.quotaRefreshDurationMinutes % 1440,
+    tokenDays: tokenDuration!.days,
+    tokenHours: tokenDuration!.hours,
+    quotaDays: quotaDuration!.days,
+    quotaHours: quotaDuration!.hours,
   } : blankForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -285,13 +291,13 @@ function ProfileModal({ profile, onClose, onSave }: {
       setError('Fill in the IDE, email, and model to continue.');
       return;
     }
-    const durations = [form.quotaDays, form.quotaMinutes, ...(form.tokenTimerEnabled ? [form.tokenDays, form.tokenMinutes] : [])];
+    const durations = [form.quotaDays, form.quotaHours, ...(form.tokenTimerEnabled ? [form.tokenDays, form.tokenHours] : [])];
     if (durations.some((value) => !Number.isSafeInteger(value) || value < 0)
       || (form.tokenTimerEnabled && form.tokenDays > 365000) || form.quotaDays > 365000
-      || (form.tokenTimerEnabled && form.tokenMinutes > 1439) || form.quotaMinutes > 1439
-      || (form.tokenTimerEnabled && form.tokenDays === 0 && form.tokenMinutes === 0)
-      || (form.quotaDays === 0 && form.quotaMinutes === 0)) {
-      setError('The quota timer needs a duration of at least one minute. Enabled timer minutes must be between 0 and 1439.');
+      || (form.tokenTimerEnabled && form.tokenHours > 23) || form.quotaHours > 23
+      || (form.tokenTimerEnabled && form.tokenDays === 0 && form.tokenHours === 0)
+      || (form.quotaDays === 0 && form.quotaHours === 0)) {
+      setError('The quota timer needs a duration of at least one hour. Hours must be between 0 and 23.');
       return;
     }
     setError('');
@@ -321,8 +327,8 @@ function ProfileModal({ profile, onClose, onSave }: {
           <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">LLM / model <span className="text-[hsl(var(--destructive))]">*</span></span><input required value={form.model} onChange={(event) => update('model', event.target.value)} placeholder="e.g. Claude, GPT-4.1, Gemini" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></label>
           <div className="space-y-4 rounded-2xl border border-[hsl(var(--border)/.7)] bg-[hsl(var(--background)/.4)] p-4">
             <div className="flex items-center justify-between gap-4"><div><div className="mono text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Token refresh timer</div><p className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">Optional. Enable it when this account has a separate token window.</p></div><button type="button" role="switch" aria-label="Enable token refresh timer" aria-checked={form.tokenTimerEnabled} onClick={() => update('tokenTimerEnabled', !form.tokenTimerEnabled)} className={`focus-ring relative h-6 w-11 shrink-0 rounded-full transition-colors ${form.tokenTimerEnabled ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted-foreground)/.35)]'}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${form.tokenTimerEnabled ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
-            {form.tokenTimerEnabled && <DurationFields label="Token refresh window" days={form.tokenDays} minutes={form.tokenMinutes} onDays={(value) => update('tokenDays', value)} onMinutes={(value) => update('tokenMinutes', value)} testId="input-token-duration" />}
-            <div className="border-t border-[hsl(var(--border)/.7)] pt-4"><DurationFields label="Quota reset window *" days={form.quotaDays} minutes={form.quotaMinutes} onDays={(value) => update('quotaDays', value)} onMinutes={(value) => update('quotaMinutes', value)} testId="input-quota-duration" /></div>
+            {form.tokenTimerEnabled && <DurationFields label="Token refresh window" days={form.tokenDays} hours={form.tokenHours} onDays={(value) => update('tokenDays', value)} onHours={(value) => update('tokenHours', value)} testId="input-token-duration" />}
+            <div className="border-t border-[hsl(var(--border)/.7)] pt-4"><DurationFields label="Quota reset window *" days={form.quotaDays} hours={form.quotaHours} onDays={(value) => update('quotaDays', value)} onHours={(value) => update('quotaHours', value)} testId="input-quota-duration" /></div>
           </div>
           <p className="-mt-3 text-[10px] text-[hsl(var(--muted-foreground))]">Quota tracking is always enabled. Timers start when you press their Start button; this app does not read provider usage automatically.</p>
           {error && <div role="alert" className="rounded-xl bg-[hsl(var(--destructive)/.1)] px-3 py-2 text-[11px] font-bold text-[hsl(var(--destructive))]">{error}</div>}
@@ -523,8 +529,8 @@ function Home() {
       ide: form.ide, name: form.name.trim(), accountId: form.accountId,
       email: form.email, model: form.model,
       tokenTimerEnabled: form.tokenTimerEnabled,
-      tokenRefreshDurationMinutes: form.tokenDays * 1440 + form.tokenMinutes,
-      quotaRefreshDurationMinutes: form.quotaDays * 1440 + form.quotaMinutes,
+      tokenRefreshDurationMinutes: form.tokenDays * 1440 + form.tokenHours * 60,
+      quotaRefreshDurationMinutes: form.quotaDays * 1440 + form.quotaHours * 60,
       tokenRefreshUntil: form.tokenTimerEnabled ? existing?.tokenRefreshUntil ?? null : null,
       quotaRefreshUntil: existing?.quotaRefreshUntil ?? null,
       createdAt: existing?.createdAt ?? Date.now(),
