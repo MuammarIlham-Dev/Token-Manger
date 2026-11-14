@@ -1,6 +1,6 @@
 import { type ChangeEvent, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Activity, AlertTriangle, Bell, Check, CircleHelp, Clock3,
+  Activity, AlertTriangle, Bell, Check, ChevronDown, CircleHelp, Clock3,
   Code2, Database, Download, Gauge, History, KeyRound, Laptop2, Mail,
   Menu, MoreHorizontal, Pencil, Plus, Search, Settings2, ShieldCheck,
   Sparkles, TimerReset, Trash2, Upload, X, Zap,
@@ -75,7 +75,7 @@ function profileIsLimited(profile: Profile, now: number) {
   return isTimerRunning(profile, 'token', now) || isTimerRunning(profile, 'quota', now);
 }
 
-function AppLogo() {
+function AppLogo({ onDark = true }: { onDark?: boolean }) {
   return (
     <div className="flex items-center gap-3">
       <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(var(--sidebar-primary))] text-[hsl(var(--sidebar-primary-foreground))] shadow-[0_8px_20px_hsl(var(--sidebar-primary)/.2)]">
@@ -83,8 +83,8 @@ function AppLogo() {
         <span className="absolute bottom-[7px] h-1 w-1 rounded-full bg-[hsl(var(--accent))]" />
       </div>
       <div>
-        <div className="text-[15px] font-extrabold tracking-[-.03em] text-[hsl(var(--sidebar-foreground))]">token timer</div>
-        <div className="mono mt-0.5 text-[9px] uppercase tracking-[.18em] text-[hsl(var(--sidebar-foreground)/.48)]">local access manager</div>
+        <div className={`text-[15px] font-extrabold tracking-[-.03em] ${onDark ? 'text-[hsl(var(--sidebar-foreground))]' : 'text-[hsl(var(--foreground))]'}`}>Token Manager</div>
+        <div className={`mono mt-0.5 text-[9px] uppercase tracking-[.18em] ${onDark ? 'text-[hsl(var(--sidebar-foreground)/.48)]' : 'text-[hsl(var(--muted-foreground))]'}`}>local access workspace</div>
       </div>
     </div>
   );
@@ -141,9 +141,9 @@ function Sidebar({ profiles, selectedIde, onSelectIde, onAdd, onActivity, onPref
   onAdd: () => void; onActivity: () => void; onPreferences: () => void;
 }) {
   return (
-    <aside className="hidden w-[248px] shrink-0 flex-col bg-[hsl(var(--sidebar))] px-5 py-6 text-[hsl(var(--sidebar-foreground))] md:flex">
+    <aside className="sticky top-0 hidden h-screen w-[256px] shrink-0 flex-col border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] px-5 py-6 text-[hsl(var(--sidebar-foreground))] md:flex">
       <AppLogo />
-      <div className="mt-12">
+      <div className="mt-10">
         <div className="mono mb-3 px-3 text-[9px] font-medium uppercase tracking-[.2em] text-[hsl(var(--sidebar-foreground)/.42)]">Workspace</div>
         <nav className="space-y-1">
           <button type="button" onClick={() => onSelectIde(selectedIde ?? '')} className="flex w-full items-center gap-3 rounded-xl bg-[hsl(var(--sidebar-accent))] px-3 py-2.5 text-left text-[13px] font-semibold text-[hsl(var(--sidebar-foreground))]">
@@ -169,7 +169,46 @@ function Sidebar({ profiles, selectedIde, onSelectIde, onAdd, onActivity, onPref
 }
 
 function Topbar({ onAdd, onMenu }: { onAdd: () => void; onMenu: () => void }) {
-  return <header className="flex items-center justify-between border-b border-[hsl(var(--border)/.75)] px-5 py-4 md:hidden"><button type="button" onClick={onMenu} className="focus-ring rounded-lg p-1" aria-label="Open menu"><Menu size={21} /></button><AppLogo /><button type="button" onClick={onAdd} className="focus-ring rounded-lg bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))]" aria-label="Add profile"><Plus size={18} /></button></header>;
+  return <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[hsl(var(--border)/.75)] bg-[hsl(var(--background)/.92)] px-4 py-3 backdrop-blur-xl md:hidden"><button type="button" onClick={onMenu} className="focus-ring rounded-lg p-2 text-[hsl(var(--muted-foreground))]" aria-label="Open menu"><Menu size={20} /></button><AppLogo onDark={false} /><button type="button" onClick={onAdd} className="focus-ring rounded-xl bg-[hsl(var(--primary))] p-2.5 text-[hsl(var(--primary-foreground))] shadow-sm" aria-label="Add profile"><Plus size={17} /></button></header>;
+}
+
+function DesktopTopbar({ onActivity, onPreferences, onHelp }: {
+  onActivity: () => void; onPreferences: () => void; onHelp: () => void;
+}) {
+  return (
+    <header className="sticky top-0 z-10 hidden h-[68px] items-center justify-between border-b border-[hsl(var(--border)/.75)] bg-[hsl(var(--background)/.88)] px-7 backdrop-blur-xl md:flex lg:px-10">
+      <div className="flex items-center gap-3 text-[11px]">
+        <span className="font-semibold text-[hsl(var(--muted-foreground))]">Workspace</span>
+        <span className="text-[hsl(var(--border))]">/</span>
+        <span className="font-extrabold text-[hsl(var(--foreground))]">Overview</span>
+        <span className="ml-2 inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/.16)] bg-[hsl(var(--primary)/.07)] px-2.5 py-1 text-[10px] font-bold text-[hsl(var(--primary))]"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-current" /> Local vault active</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="mr-2 hidden text-[11px] font-medium text-[hsl(var(--muted-foreground))] lg:inline">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <button type="button" onClick={onHelp} className="focus-ring rounded-xl p-2.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label="How it works"><CircleHelp size={17} /></button>
+        <button type="button" onClick={onActivity} className="focus-ring rounded-xl p-2.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label="Activity log"><History size={17} /></button>
+        <button type="button" onClick={onPreferences} className="focus-ring rounded-xl p-2.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label="Preferences and backups"><Settings2 size={17} /></button>
+        <div className="ml-2 flex h-9 w-9 items-center justify-center rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--primary))]"><ShieldCheck size={16} /></div>
+      </div>
+    </header>
+  );
+}
+
+function OverviewMetric({ label, value, detail, icon, tone = 'teal' }: {
+  label: string; value: number; detail: string; icon: ReactNode; tone?: 'teal' | 'amber' | 'blue' | 'violet';
+}) {
+  const tones = {
+    teal: 'bg-[hsl(var(--primary)/.09)] text-[hsl(var(--primary))]',
+    amber: 'bg-[hsl(var(--accent)/.16)] text-[hsl(28_76%_38%)]',
+    blue: 'bg-[hsl(211_86%_55%/.1)] text-[hsl(211_75%_42%)]',
+    violet: 'bg-[hsl(264_70%_60%/.11)] text-[hsl(264_60%_48%)]',
+  };
+  return (
+    <div className="metric-card group relative overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))]">{label}</div><div className="mt-3 text-[30px] font-extrabold leading-none tracking-[-.06em] text-[hsl(var(--foreground))]">{value}</div></div><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}>{icon}</div></div>
+      <div className="mt-4 border-t border-[hsl(var(--border)/.7)] pt-3 text-[10px] font-medium text-[hsl(var(--muted-foreground))]">{detail}</div>
+    </div>
+  );
 }
 
 function StatusBadge({ limited }: { limited: boolean }) {
@@ -188,15 +227,23 @@ function TimerPanel({ kind, profile, now, onStart, onReset }: {
   const label = kind === 'token' ? 'Token refresh' : 'Quota reset';
   const progress = running ? Math.min(100, Math.max(2, (remaining / (duration * 60000)) * 100)) : 0;
   return (
-    <div className={`rounded-xl p-3.5 ${running ? 'bg-[hsl(var(--accent)/.1)]' : 'bg-[hsl(var(--primary)/.055)]'}`}>
-      <div className="flex items-center justify-between gap-2">
-        <div className={`flex items-center gap-2 text-[11px] font-extrabold ${running ? 'text-[hsl(28_76%_34%)]' : 'text-[hsl(var(--foreground))]'}`}><Clock3 size={14} />{label}</div>
-        {running ? <span className="mono text-[14px] font-medium tracking-[-.04em] text-[hsl(28_76%_30%)]" aria-label={`${label} countdown`}>{formatCountdown(remaining)}</span> : <span className="text-[10px] font-bold text-[hsl(var(--primary))]">Ready · {formatDuration(duration)}</span>}
+    <div className={`timer-panel rounded-xl border p-4 ${running ? 'border-[hsl(var(--accent)/.28)] bg-[hsl(var(--accent)/.075)]' : 'border-[hsl(var(--border)/.8)] bg-[hsl(var(--background)/.72)]'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${running ? 'bg-[hsl(var(--accent)/.18)] text-[hsl(28_76%_36%)]' : 'bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]'}`}>
+            {kind === 'token' ? <KeyRound size={15} /> : <Clock3 size={15} />}
+          </div>
+          <div className="min-w-0"><div className="truncate text-[11px] font-extrabold">{label}</div><div className="mt-0.5 text-[9px] font-medium text-[hsl(var(--muted-foreground))]">{running ? 'Window in progress' : `${formatDuration(duration)} window`}</div></div>
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold ${running ? 'bg-[hsl(var(--accent)/.2)] text-[hsl(28_76%_34%)]' : 'bg-[hsl(var(--primary)/.09)] text-[hsl(var(--primary))]'}`}>{running ? 'ACTIVE' : 'READY'}</span>
       </div>
-      {running && <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-[hsl(var(--accent)/.18)]"><div className="h-full rounded-full bg-[hsl(var(--accent))] transition-[width] duration-1000 ease-linear" style={{ width: `${progress}%` }} /></div>}
-      <button type="button" onClick={running ? onReset : onStart} className={`focus-ring mt-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-extrabold transition-colors ${running ? 'text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/.09)]' : 'text-[hsl(var(--accent-foreground))] hover:bg-[hsl(var(--accent)/.15)]'}`}>
-        {running ? <><TimerReset size={13} /> Reset {kind} timer</> : <><AlertTriangle size={13} /> Start {kind} timer</>}
-      </button>
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <div className={`mono text-[22px] font-semibold leading-none tracking-[-.06em] tabular-nums ${running ? 'text-[hsl(28_76%_30%)]' : 'text-[hsl(var(--foreground))]'}`} aria-label={running ? `${label} countdown` : `${label} duration`}>{running ? formatCountdown(remaining) : formatDuration(duration)}</div>
+        <button type="button" onClick={running ? onReset : onStart} className={`focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-[9px] font-extrabold transition-all ${running ? 'text-[hsl(28_76%_34%)] hover:bg-[hsl(var(--accent)/.17)]' : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm hover:-translate-y-0.5 hover:shadow-md'}`}>
+          {running ? <><TimerReset size={12} /> Reset</> : <><Plus size={12} /> Start timer</>}
+        </button>
+      </div>
+      <div className={`mt-3 h-1 overflow-hidden rounded-full ${running ? 'bg-[hsl(var(--accent)/.18)]' : 'bg-[hsl(var(--border)/.68)]'}`}><div className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${running ? 'bg-[hsl(var(--accent))]' : 'w-0'}`} style={{ width: `${progress}%` }} /></div>
     </div>
   );
 }
@@ -207,29 +254,26 @@ function ProfileCard({ profile, now, onEdit, onDelete, onStartTimer, onResetTime
 }) {
   const limited = profileIsLimited(profile, now);
   return (
-    <article className={`card-shadow animate-rise group relative overflow-hidden rounded-2xl border bg-[hsl(var(--card))] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_hsl(205_30%_22%/.12)] ${limited ? 'border-[hsl(var(--accent)/.48)]' : 'border-[hsl(var(--card-border))]'}`}>
+    <article className={`card-shadow animate-rise group relative overflow-hidden rounded-2xl border bg-[hsl(var(--card))] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_48px_hsl(220_35%_20%/.11)] ${limited ? 'border-[hsl(var(--accent)/.4)]' : 'border-[hsl(var(--card-border))]'}`}>
       {limited && <div className="scan-line" />}
-      <div className="relative p-5 sm:p-6">
+      <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3.5">
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold ${limited ? 'bg-[hsl(var(--accent)/.18)] text-[hsl(28_76%_34%)]' : 'bg-[hsl(var(--primary)/.13)] text-[hsl(var(--primary))]'}`}>{initials(profileDisplayName(profile))}</div>
-            <div className="min-w-0"><h3 className="truncate text-[15px] font-extrabold tracking-[-.02em]">{profileDisplayName(profile)}</h3><div className="mt-1 flex items-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))]"><Laptop2 size={12} /> {profile.ide}</div></div>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] text-[12px] font-extrabold ring-1 ring-inset ${limited ? 'bg-[hsl(var(--accent)/.16)] text-[hsl(28_76%_34%)] ring-[hsl(var(--accent)/.22)]' : 'bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))] ring-[hsl(var(--primary)/.12)]'}`}>{initials(profileDisplayName(profile))}</div>
+            <div className="min-w-0"><h3 className="truncate text-[14px] font-extrabold tracking-[-.025em]">{profileDisplayName(profile)}</h3><div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-[hsl(var(--muted-foreground))]"><Laptop2 size={11} className="shrink-0" /><span className="truncate">{profile.ide}</span><span className="text-[hsl(var(--border))]">·</span><span className="truncate">{profile.email}</span></div></div>
           </div>
-          <div className="flex items-center gap-1"><StatusBadge limited={limited} /><button type="button" onClick={onEdit} className="focus-ring ml-1 rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] opacity-60 transition-all hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] group-hover:opacity-100" aria-label={`Edit ${profileDisplayName(profile)}`}><MoreHorizontal size={17} /></button></div>
+          <div className="flex shrink-0 items-center gap-1.5"><StatusBadge limited={limited} /><button type="button" onClick={onEdit} className="focus-ring rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]" aria-label={`Edit ${profileDisplayName(profile)}`}><MoreHorizontal size={17} /></button></div>
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 border-y border-[hsl(var(--border)/.7)] py-4">
-          <div className="min-w-0"><div className="mono mb-1.5 text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">LLM / model</div><div className="flex items-center gap-1.5 truncate text-[12px] font-bold"><Sparkles size={13} className="shrink-0 text-[hsl(var(--accent))]" />{profile.model}</div></div>
-          <div className="min-w-0"><div className="mono mb-1.5 text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Email</div><div className="flex min-w-0 items-center gap-1.5 truncate text-[12px] font-semibold text-[hsl(var(--muted-foreground))]"><Mail size={12} /><span className="truncate">{profile.email}</span></div></div>
-          {profile.accountId && <div className="col-span-2 min-w-0"><div className="mono mb-1.5 text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Account ID</div><div className="truncate text-[11px] font-semibold text-[hsl(var(--muted-foreground))]">{profile.accountId}</div></div>}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-[hsl(var(--border)/.75)] bg-[hsl(var(--background)/.7)] px-2.5 py-1.5 text-[10px] font-bold text-[hsl(var(--foreground))]"><Sparkles size={12} className="shrink-0 text-[hsl(var(--primary))]" /><span className="truncate">{profile.model}</span></span>
+          {profile.accountId && <span className="max-w-full truncate rounded-lg bg-[hsl(var(--muted)/.65)] px-2.5 py-1.5 text-[9px] font-semibold text-[hsl(var(--muted-foreground))]">ID · {profile.accountId}</span>}
+          {profile.tokenTimerEnabled && <span className="inline-flex items-center gap-1 rounded-lg bg-[hsl(var(--primary)/.07)] px-2.5 py-1.5 text-[9px] font-bold text-[hsl(var(--primary))]"><KeyRound size={11} /> Token window on</span>}
         </div>
-        <div className={`mt-4 grid gap-3 ${profile.tokenTimerEnabled ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`mt-3 grid gap-2.5 ${profile.tokenTimerEnabled ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
           {profile.tokenTimerEnabled && <TimerPanel kind="token" profile={profile} now={now} onStart={() => onStartTimer('token')} onReset={() => onResetTimer('token')} />}
           <TimerPanel kind="quota" profile={profile} now={now} onStart={() => onStartTimer('quota')} onReset={() => onResetTimer('quota')} />
         </div>
-        <div className="mt-3 flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-          <button type="button" onClick={onEdit} className="focus-ring rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" aria-label="Edit profile"><Pencil size={14} /></button>
-          <button type="button" onClick={onDelete} className="focus-ring rounded-lg p-1.5 text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)/.1)]" aria-label="Delete profile"><Trash2 size={14} /></button>
-        </div>
+        <div className="mt-3 flex items-center justify-between border-t border-[hsl(var(--border)/.65)] pt-3"><span className="text-[9px] font-medium text-[hsl(var(--muted-foreground))]">Added {new Date(profile.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span><button type="button" onClick={onDelete} className="focus-ring inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-bold text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--destructive)/.08)] hover:text-[hsl(var(--destructive))]" aria-label={`Delete ${profileDisplayName(profile)}`}><Trash2 size={12} /> Remove</button></div>
       </div>
     </article>
   );
@@ -425,6 +469,7 @@ function Home() {
   const [now, setNow] = useState(Date.now());
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StatusFilter>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'recent'>('name');
   const [modalProfile, setModalProfile] = useState<Profile | null | undefined>(undefined);
   const [profileToDelete, setProfileToDelete] = useState<Profile | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
@@ -518,9 +563,16 @@ function Home() {
     return text.includes(query.trim().toLowerCase())
       && (!selectedIde || profile.ide === selectedIde)
       && (filter === 'all' || (filter === 'limited' ? limited : !limited));
-  }), [profiles, query, selectedIde, filter, now]);
-  const limitedCount = profiles.filter((profile) => profileIsLimited(profile, now)).length;
-  const readyCount = profiles.length - limitedCount;
+  }).sort((left, right) => sortBy === 'recent'
+    ? right.createdAt - left.createdAt
+    : profileDisplayName(left).localeCompare(profileDisplayName(right))), [profiles, query, selectedIde, filter, now, sortBy]);
+  const workspaceProfiles = selectedIde ? profiles.filter((profile) => profile.ide === selectedIde) : profiles;
+  const limitedCount = workspaceProfiles.filter((profile) => profileIsLimited(profile, now)).length;
+  const readyCount = workspaceProfiles.length - limitedCount;
+  const activeTimerCount = workspaceProfiles.reduce((count, profile) => count
+    + Number(isTimerRunning(profile, 'token', now))
+    + Number(isTimerRunning(profile, 'quota', now)), 0);
+  const readyPercent = workspaceProfiles.length ? Math.round((readyCount / workspaceProfiles.length) * 100) : 0;
 
   async function saveProfile(form: FormState) {
     const existing = modalProfile && profiles.find((profile) => profile.id === modalProfile.id);
@@ -633,7 +685,7 @@ function Home() {
   }
 
   return (
-    <div className="app-shell flex text-[hsl(var(--foreground))]">
+    <div className="app-shell flex min-h-screen text-[hsl(var(--foreground))]">
       <div className="noise" />
       <Sidebar profiles={profiles} selectedIde={selectedIde} onSelectIde={selectIde} onAdd={() => setModalProfile(null)} onActivity={() => setShowActivity(true)} onPreferences={() => setShowPreferences(true)} />
       {mobileNav && (
@@ -652,18 +704,48 @@ function Home() {
       )}
       <main className="min-w-0 flex-1">
         <Topbar onAdd={() => setModalProfile(null)} onMenu={() => setMobileNav(true)} />
-        <div className="mx-auto max-w-[1220px] px-5 pb-12 pt-7 sm:px-8 md:px-12 md:pt-12 lg:px-16">
-          <div className="animate-rise flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="mono mb-3 flex items-center gap-2 text-[9px] font-medium uppercase tracking-[.2em] text-[hsl(var(--primary))]"><span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[hsl(var(--primary))]" /> {selectedIde ? 'Dedicated IDE workspace' : 'Local workspace'}</div><h1 className="text-[32px] font-extrabold tracking-[-.065em] sm:text-[40px]">{selectedIde ? <>{selectedIde} <span className="text-[hsl(var(--primary))]">workspace.</span></> : <>Keep your access <span className="text-[hsl(var(--primary))]">within reach.</span></>}</h1><p className="mt-2 max-w-[520px] text-[13px] leading-relaxed text-[hsl(var(--muted-foreground))]">Track independent token refresh and quota reset timers for every account and model you use.</p></div><div className="flex flex-wrap gap-2">{selectedIde && <button type="button" onClick={() => navigate('/')} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.65)] px-4 text-[12px] font-extrabold text-[hsl(var(--muted-foreground))] transition-all hover:-translate-y-0.5 hover:bg-[hsl(var(--muted))]">All IDEs</button>}<button type="button" onClick={() => setModalProfile(null)} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 text-[12px] font-extrabold text-[hsl(var(--primary-foreground))] shadow-[0_8px_20px_hsl(var(--primary)/.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_24px_hsl(var(--primary)/.27)]"><Plus size={16} strokeWidth={2.8} /> Add profile</button></div></div>
-          <div className="animate-rise animate-rise-1 mt-9 grid gap-3 sm:grid-cols-3">
-            <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card)/.7)] p-4"><div className="mono text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Total profiles</div><div className="mt-2 text-[26px] font-extrabold tracking-[-.05em]">{profiles.length}</div><KeyRound className="absolute right-4 top-4 text-[hsl(var(--primary)/.28)]" size={19} /></div>
-            <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card)/.7)] p-4"><div className="mono text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Ready now</div><div className="mt-2 text-[26px] font-extrabold tracking-[-.05em] text-[hsl(var(--primary))]">{readyCount}</div><Zap className="absolute right-4 top-4 text-[hsl(var(--primary)/.28)]" size={19} /></div>
-            <div className="relative overflow-hidden rounded-2xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card)/.7)] p-4"><div className="mono text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Cooling down</div><div className="mt-2 text-[26px] font-extrabold tracking-[-.05em] text-[hsl(28_76%_40%)]">{limitedCount}</div><Clock3 className="absolute right-4 top-4 text-[hsl(var(--accent)/.55)]" size={19} /></div>
-          </div>
-          <section className="animate-rise animate-rise-2 mt-10">
-            <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><div className="flex items-center gap-2"><h2 className="text-[18px] font-extrabold tracking-[-.035em]">Your profiles</h2>{selectedIde && <span className="rounded-full bg-[hsl(var(--primary)/.1)] px-2.5 py-1 text-[10px] font-extrabold text-[hsl(var(--primary))]">{selectedIde}</span>}</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{filteredProfiles.length} connection{filteredProfiles.length === 1 ? '' : 's'} in view{selectedIde ? ` · ${selectedIde}` : ''}</p></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="pointer-events-none absolute left-3 top-2.5 text-[hsl(var(--muted-foreground))]" size={15} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a profile…" className="focus-ring h-9 w-full rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card)/.6)] pl-9 pr-3 text-[11px] font-semibold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))] sm:w-[190px]" /></div><div className="flex rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--card)/.6)] p-0.5">{(['all', 'ready', 'limited'] as const).map((option) => <button key={option} type="button" onClick={() => setFilter(option)} className={`focus-ring rounded-md px-3 py-1.5 text-[10px] font-extrabold capitalize transition-colors ${filter === option ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}`}>{option === 'all' ? 'All' : option === 'limited' ? 'Cooldown' : 'Ready'}</button>)}</div></div></div>
-            {filteredProfiles.length > 0 ? <div className="grid gap-4 lg:grid-cols-2">{filteredProfiles.map((profile, index) => <div key={profile.id} style={{ animationDelay: `${index * 70}ms` }}><ProfileCard profile={profile} now={now} onEdit={() => setModalProfile(profile)} onDelete={() => setProfileToDelete(profile)} onStartTimer={(kind) => void startTimer(profile, kind).catch((error) => toast({ title: 'Could not start timer', description: error instanceof Error ? error.message : 'Local storage failed.' }))} onResetTimer={(kind) => void resetTimer(profile, kind).catch((error) => toast({ title: 'Could not reset timer', description: error instanceof Error ? error.message : 'Local storage failed.' }))} /></div>)}</div> : <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] px-6 text-center"><div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]"><KeyRound size={24} /></div><h3 className="text-[16px] font-extrabold tracking-[-.03em]">{profiles.length === 0 ? 'Your control room is quiet' : selectedIde ? `No ${selectedIde} profiles match your filters` : 'No profiles match that search'}</h3><p className="mt-2 max-w-[320px] text-[12px] leading-relaxed text-[hsl(var(--muted-foreground))]">{profiles.length === 0 ? 'Add your first account and model, then track its token and quota windows independently.' : 'Try a different name, email, account ID, IDE, model, or status filter.'}</p>{profiles.length === 0 && <button type="button" onClick={() => setModalProfile(null)} className="mt-5 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-extrabold text-[hsl(var(--primary-foreground))]"><Plus size={14} className="mr-1 inline" /> Add first profile</button>}</div>}
+        <DesktopTopbar onActivity={() => setShowActivity(true)} onPreferences={() => setShowPreferences(true)} onHelp={() => setShowHelp(true)} />
+        <div className="mx-auto max-w-[1500px] px-4 pb-10 pt-6 sm:px-7 sm:pt-8 lg:px-10 lg:pt-9">
+          <section className="animate-rise flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
+            <div>
+              <div className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[.16em] text-[hsl(var(--primary))]"><span className="flex h-5 w-5 items-center justify-center rounded-md bg-[hsl(var(--primary)/.1)]"><Activity size={12} /></span>{selectedIde ? `${selectedIde} workspace` : 'Workspace overview'}<span className="text-[hsl(var(--muted-foreground)/.45)]">·</span><span className="font-medium normal-case tracking-normal text-[hsl(var(--muted-foreground))]">{new Date(now).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span></div>
+              <h1 className="text-[30px] font-extrabold leading-tight tracking-[-.06em] sm:text-[38px]">{selectedIde ? <>{selectedIde} <span className="text-[hsl(var(--primary))]">workspace</span></> : <>Your access, <span className="text-[hsl(var(--primary))]">at a glance.</span></>}</h1>
+              <p className="mt-2 max-w-[620px] text-[13px] leading-relaxed text-[hsl(var(--muted-foreground))]">A clear view of every account, model, and reset window you’re tracking in this browser.</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {selectedIde && <button type="button" onClick={() => navigate('/')} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 text-[11px] font-extrabold text-[hsl(var(--muted-foreground))] shadow-sm transition-all hover:border-[hsl(var(--primary)/.3)] hover:text-[hsl(var(--primary))]">All workspaces</button>}
+              <button type="button" onClick={() => setModalProfile(null)} className="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 text-[11px] font-extrabold text-[hsl(var(--primary-foreground))] shadow-[0_8px_20px_hsl(var(--primary)/.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_24px_hsl(var(--primary)/.27)]"><Plus size={16} strokeWidth={2.8} /> New profile</button>
+            </div>
           </section>
-          <footer className="animate-rise animate-rise-3 mt-12 flex flex-col gap-3 border-t border-[hsl(var(--border)/.7)] pt-5 text-[10px] text-[hsl(var(--muted-foreground))] sm:flex-row sm:items-center sm:justify-between"><button type="button" onClick={() => setShowPreferences(true)} className="flex items-center gap-2 text-left hover:text-[hsl(var(--foreground))]"><ShieldCheck size={13} className="text-[hsl(var(--primary))]" /> Local-first · stored in this browser</button><div className="flex items-center gap-4"><span className="mono">v1.1.0</span><button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 hover:text-[hsl(var(--foreground))]"><CircleHelp size={13} /> How it works</button></div></footer>
+
+          <section className="workspace-health animate-rise animate-rise-1 mt-7 flex flex-col gap-5 overflow-hidden rounded-2xl p-5 text-white sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="flex items-start gap-3.5">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-[hsl(var(--sidebar-primary))]"><ShieldCheck size={20} /></div>
+              <div><div className="flex flex-wrap items-center gap-2"><h2 className="text-[13px] font-extrabold">{profiles.length === 0 ? 'Your workspace is ready' : limitedCount === 0 ? 'All profiles are available' : `${limitedCount} profile${limitedCount === 1 ? '' : 's'} cooling down`}</h2><span className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[9px] font-bold text-white/75">LOCAL ONLY</span></div><p className="mt-1 max-w-[520px] text-[10px] leading-relaxed text-white/65">{profiles.length === 0 ? 'Add your first profile to start organizing your account timers.' : `${activeTimerCount} timer${activeTimerCount === 1 ? '' : 's'} currently running across ${profiles.length} profile${profiles.length === 1 ? '' : 's'}. Countdown continues from your device clock.`}</p></div>
+            </div>
+            <div className="w-full sm:w-[250px] sm:shrink-0"><div className="mb-2 flex items-center justify-between text-[9px] font-semibold text-white/65"><span>Profile availability</span><span className="text-[11px] font-extrabold text-white">{readyPercent}%</span></div><div className="h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[hsl(var(--sidebar-primary))] transition-[width] duration-500" style={{ width: `${readyPercent}%` }} /></div><div className="mt-2 flex items-center justify-between text-[9px] text-white/55"><span>{readyCount} ready</span><span>{limitedCount} cooling down</span></div></div>
+          </section>
+
+          <section aria-label="Workspace metrics" className="animate-rise animate-rise-2 mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <OverviewMetric label="Profiles managed" value={workspaceProfiles.length} detail={selectedIde ? `In ${selectedIde}` : 'Across all workspaces'} icon={<KeyRound size={18} />} tone="blue" />
+            <OverviewMetric label="Available now" value={readyCount} detail="Ready to use" icon={<Zap size={18} />} tone="teal" />
+            <OverviewMetric label="Cooling down" value={limitedCount} detail="Waiting on a reset window" icon={<Clock3 size={18} />} tone="amber" />
+            <OverviewMetric label="Active timers" value={activeTimerCount} detail="Live countdowns" icon={<TimerReset size={18} />} tone="violet" />
+          </section>
+
+          <section className="animate-rise animate-rise-3 mt-8">
+            <div className="mb-4 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
+              <div><div className="flex items-center gap-2"><h2 className="text-[19px] font-extrabold tracking-[-.04em]">Profiles</h2><span className="rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-[10px] font-bold text-[hsl(var(--muted-foreground))]">{profiles.length}</span>{selectedIde && <span className="rounded-full bg-[hsl(var(--primary)/.09)] px-2.5 py-1 text-[9px] font-extrabold text-[hsl(var(--primary))]">{selectedIde}</span>}</div><p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">Search, filter, and manage your connected accounts.</p></div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative min-w-0 flex-1 sm:min-w-[230px]"><Search className="pointer-events-none absolute left-3 top-3 text-[hsl(var(--muted-foreground))]" size={15} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search profiles, emails, models…" className="focus-ring h-10 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--card))] pl-9 pr-3 text-[11px] font-semibold shadow-sm placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></div>
+                <label className="relative"><span className="sr-only">Sort profiles</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value as 'name' | 'recent')} className="focus-ring h-10 w-full appearance-none rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--card))] px-3 pr-8 text-[10px] font-bold text-[hsl(var(--foreground))] shadow-sm sm:w-[142px]"><option value="name">Name A–Z</option><option value="recent">Recently added</option></select><ChevronDown className="pointer-events-none absolute right-2.5 top-3 text-[hsl(var(--muted-foreground))]" size={14} /></label>
+                <div className="flex items-center gap-1 rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--card))] p-1 shadow-sm" role="group" aria-label="Filter profiles by status">{(['all', 'ready', 'limited'] as const).map((option) => { const count = option === 'all' ? workspaceProfiles.length : option === 'ready' ? readyCount : limitedCount; return <button key={option} type="button" onClick={() => setFilter(option)} aria-pressed={filter === option} className={`focus-ring inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-extrabold capitalize transition-colors sm:px-3 ${filter === option ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted)/.7)] hover:text-[hsl(var(--foreground))]'}`}>{option === 'all' ? 'All' : option === 'limited' ? 'Cooldown' : 'Ready'}<span className={`text-[9px] ${filter === option ? 'text-white/70' : 'text-[hsl(var(--muted-foreground)/.75)]'}`}>{count}</span></button>; })}</div>
+              </div>
+            </div>
+            <div className="mb-3 flex items-center justify-between text-[10px] text-[hsl(var(--muted-foreground))]"><span>{filteredProfiles.length} result{filteredProfiles.length === 1 ? '' : 's'}{query.trim() ? ` for “${query.trim()}”` : ''}</span>{(query || filter !== 'all' || selectedIde) && <button type="button" onClick={() => { setQuery(''); setFilter('all'); if (selectedIde) navigate('/'); }} className="focus-ring rounded-md px-2 py-1 font-bold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/.08)]">Clear filters</button>}</div>
+            {filteredProfiles.length > 0 ? <div className="grid gap-3.5 xl:grid-cols-2">{filteredProfiles.map((profile, index) => <div key={profile.id} style={{ animationDelay: `${index * 55}ms` }}><ProfileCard profile={profile} now={now} onEdit={() => setModalProfile(profile)} onDelete={() => setProfileToDelete(profile)} onStartTimer={(kind) => void startTimer(profile, kind).catch((error) => toast({ title: 'Could not start timer', description: error instanceof Error ? error.message : 'Local storage failed.' }))} onResetTimer={(kind) => void resetTimer(profile, kind).catch((error) => toast({ title: 'Could not reset timer', description: error instanceof Error ? error.message : 'Local storage failed.' }))} /></div>)}</div> : <div className="empty-state flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-[hsl(var(--border))] px-6 text-center"><div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]"><KeyRound size={24} /></div><h3 className="text-[16px] font-extrabold tracking-[-.03em]">{profiles.length === 0 ? 'A better overview starts here' : selectedIde ? `No ${selectedIde} profiles match your filters` : 'No profiles match that search'}</h3><p className="mt-2 max-w-[350px] text-[12px] leading-relaxed text-[hsl(var(--muted-foreground))]">{profiles.length === 0 ? 'Create your first profile to track an IDE, account, model, and quota window together.' : 'Try a different search or clear the active filters to see more profiles.'}</p>{profiles.length === 0 ? <button type="button" onClick={() => setModalProfile(null)} className="focus-ring mt-5 inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 py-2.5 text-[11px] font-extrabold text-[hsl(var(--primary-foreground))] shadow-sm"><Plus size={14} /> Create profile</button> : <button type="button" onClick={() => { setQuery(''); setFilter('all'); if (selectedIde) navigate('/'); }} className="focus-ring mt-4 rounded-lg px-3 py-2 text-[10px] font-bold text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/.08)]">Clear filters</button>}</div>}
+          </section>
+          <footer className="mt-10 flex flex-col gap-3 border-t border-[hsl(var(--border)/.75)] pt-5 text-[10px] text-[hsl(var(--muted-foreground))] sm:flex-row sm:items-center sm:justify-between"><button type="button" onClick={() => setShowPreferences(true)} className="flex items-center gap-2 text-left hover:text-[hsl(var(--foreground))]"><ShieldCheck size={13} className="text-[hsl(var(--primary))]" /> Local-first · IndexedDB in this browser</button><div className="flex items-center gap-4"><span className="mono">v1.1.0</span><button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 hover:text-[hsl(var(--foreground))]"><CircleHelp size={13} /> Help & timer guide</button></div></footer>
         </div>
       </main>
       {modalProfile !== undefined && <ProfileModal profile={modalProfile} onClose={() => setModalProfile(undefined)} onSave={saveProfile} />}
