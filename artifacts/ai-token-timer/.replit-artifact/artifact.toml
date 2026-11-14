@@ -1,8 +1,8 @@
 kind = "web"
 previewPath = "/"
-title = "AI Token Timer"
-description = "A personal progressive web app for organizing AI token profiles by IDE, agent, and email, with live refresh countdowns after usage limits are reached."
-version = "1.0.0"
+title = "Token Manager"
+description = "A local-first progressive web app for organizing AI account profiles and tracking independent token refresh and quota reset timers."
+version = "1.1.0"
 id = "artifacts/ai-token-timer"
 router = "path"
 

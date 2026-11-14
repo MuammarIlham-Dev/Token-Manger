@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install --filter @workspace/ai-token-timer... --frozen-lockfile",
+  "buildCommand": "pnpm --filter @workspace/ai-token-timer run typecheck && pnpm --filter @workspace/ai-token-timer run build",
+  "outputDirectory": "artifacts/ai-token-timer/dist/public",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

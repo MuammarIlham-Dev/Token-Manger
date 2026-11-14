@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
@@ -64,8 +63,8 @@
   --sidebar-accent: 204 30% 26%;
   --sidebar-accent-foreground: 42 34% 94%;
   --sidebar-ring: 177 58% 46%;
-  --app-font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-  --app-font-mono: 'DM Mono', ui-monospace, monospace;
+  --app-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --app-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --radius: 0.9rem;
   --shadow-card: 0 14px 40px hsl(205 30% 22% / 0.07);
 }

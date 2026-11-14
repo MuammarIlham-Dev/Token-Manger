@@ -3,11 +3,11 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "start": "pnpm --filter @workspace/db run push && pnpm -r --parallel run dev",
-    "dev": "pnpm -r --parallel run dev",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "start": "pnpm --filter @workspace/ai-token-timer run dev",
+    "dev": "pnpm --filter @workspace/ai-token-timer run dev",
+    "build": "pnpm --filter @workspace/ai-token-timer run typecheck && pnpm --filter @workspace/ai-token-timer run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm --filter @workspace/ai-token-timer run typecheck"
   },
   "private": true,
   "dependencies": {

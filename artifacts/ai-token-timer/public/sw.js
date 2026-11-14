@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-token-timer-shell-v2';
+const CACHE_NAME = 'token-manager-shell-v3';
 const SHELL = ['./', './index.html', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -24,6 +24,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
       }
       return response;
-    }).catch(() => caches.match('./index.html'))),
+    }).catch(() => event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())),
   );
 });

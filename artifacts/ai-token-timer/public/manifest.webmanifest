@@ -1,7 +1,7 @@
 {
-  "name": "AI Token Timer",
-  "short_name": "Token Timer",
-  "description": "Keep AI IDE profiles organized and track token refresh windows.",
+  "name": "Token Manager",
+  "short_name": "Token Manager",
+  "description": "Manage AI account profiles and token refresh and quota reset timers.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

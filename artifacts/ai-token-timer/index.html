@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>AI Token Timer</title>
-    <meta name="description" content="Keep AI IDE profiles organized and know exactly when each token window is ready again." />
+    <title>Token Manager</title>
+    <meta name="description" content="Manage AI account profiles and independent token refresh and quota reset timers. Your data stays in this browser." />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0c2027" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -12,26 +12,22 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Token Timer" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <meta property="og:title" content="AI Token Timer" />
-    <meta property="og:description" content="Keep AI IDE profiles organized and know exactly when each token window is ready again." />
+    <meta property="og:title" content="Token Manager" />
+    <meta property="og:description" content="Manage AI account profiles and independent token refresh and quota reset timers. Your data stays in this browser." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="AI Token Timer" />
-    <meta name="twitter:description" content="AI Token Timer — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:title" content="Token Manager" />
+    <meta name="twitter:description" content="Manage AI account profiles and independent token refresh and quota reset timers." />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main role="status" aria-live="polite" style="min-height:100vh;display:grid;place-content:center;padding:24px;text-align:center;font-family:system-ui,sans-serif;color:#1b3039;background:#f8f7f1">
+        <strong style="font-size:20px">Token Manager</strong>
+        <p style="font-size:13px;color:#63747a">Opening your local vault…</p>
+        <noscript><p>Enable JavaScript to use Token Manager.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=2').catch(() => {});
-        });
-      }
-    </script>
   </body>
 </html>
