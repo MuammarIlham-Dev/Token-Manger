@@ -7,6 +7,7 @@ export interface Profile {
   accountId: string;
   email: string;
   model: string;
+  tokenTimerEnabled: boolean;
   tokenRefreshDurationMinutes: number;
   quotaRefreshDurationMinutes: number;
   tokenRefreshUntil: number | null;
@@ -182,7 +183,7 @@ export async function getSnapshot(): Promise<AppSnapshot> {
     transaction.oncomplete = () => {
       const storedPreferences = preferenceRequest.result?.value as Preferences | undefined;
       resolve({
-        profiles: (profileRequest.result as Profile[]).sort((a, b) => a.name.localeCompare(b.name)),
+        profiles: (profileRequest.result as Profile[]).map((profile) => normalizeProfile(profile)).sort((a, b) => profileDisplayName(a).localeCompare(profileDisplayName(b))),
         activity: (activityRequest.result as ActivityEntry[]).sort((a, b) => b.occurredAt - a.occurredAt),
         preferences: { ...DEFAULT_PREFERENCES, ...storedPreferences },
       });
@@ -225,7 +226,7 @@ export async function updateProfileWithActivity(id: string, changes: Partial<Pro
         return;
       }
       result = { ...current, ...changes };
-      entry.profileName = typeof changes.name === 'string' ? changes.name : current.name;
+      entry.profileName = profileDisplayName(result);
       profiles.put(result);
       addActivityInTransaction(transaction, entry);
     };
@@ -289,6 +290,7 @@ function isProfile(value: unknown): value is Profile {
     && typeof item.name === 'string'
     && typeof item.email === 'string'
     && typeof (item.model ?? item.agent) === 'string'
+    && (item.tokenTimerEnabled === undefined || typeof item.tokenTimerEnabled === 'boolean')
     && Number.isSafeInteger(tokenDuration) && Number(tokenDuration) > 0
     && Number.isSafeInteger(quotaDuration) && Number(quotaDuration) > 0
     && (tokenUntil === null || (typeof tokenUntil === 'number' && Number.isFinite(tokenUntil) && Math.abs(tokenUntil) <= 8.64e15))
@@ -307,12 +309,19 @@ function normalizeProfile(value: Partial<Profile> & {
     accountId: typeof value.accountId === 'string' ? value.accountId.trim() : '',
     email: value.email.trim(),
     model: (value.model ?? value.agent ?? '').trim(),
+    tokenTimerEnabled: typeof value.tokenTimerEnabled === 'boolean'
+      ? value.tokenTimerEnabled
+      : value.tokenRefreshDurationMinutes !== undefined,
     tokenRefreshDurationMinutes: value.tokenRefreshDurationMinutes ?? 60,
     quotaRefreshDurationMinutes: value.quotaRefreshDurationMinutes ?? value.durationMinutes ?? 60,
     tokenRefreshUntil: value.tokenRefreshUntil ?? null,
     quotaRefreshUntil: value.quotaRefreshUntil ?? value.limitedUntil ?? null,
     createdAt: value.createdAt,
   };
+}
+
+export function profileDisplayName(profile: Pick<Profile, 'name' | 'email' | 'model'>): string {
+  return profile.name.trim() || profile.email || profile.model || 'Unnamed profile';
 }
 
 function normalizeActivity(value: unknown): ActivityEntry | null {

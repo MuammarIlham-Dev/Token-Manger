@@ -14,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import {
   appendActivity, clearActivity, createId, exportBackup, getSnapshot,
   getStorageStatus, importBackup, removeProfileWithActivity,
-  requestPersistentStorage, savePreferences, saveProfileWithActivity,
+  profileDisplayName, requestPersistentStorage, savePreferences, saveProfileWithActivity,
   subscribeToStore, updateProfileWithActivity,
   type ActivityAction, type ActivityEntry, type AppSnapshot, type BackupFile,
   type Preferences, type Profile, type StorageStatus, type TimerKind,
@@ -62,6 +62,7 @@ function timerDuration(profile: Profile, kind: TimerKind) {
 }
 
 function isTimerRunning(profile: Profile, kind: TimerKind, now: number) {
+  if (kind === 'token' && !profile.tokenTimerEnabled) return false;
   const until = timerUntil(profile, kind);
   return until !== null && until > now;
 }
@@ -207,18 +208,18 @@ function ProfileCard({ profile, now, onEdit, onDelete, onStartTimer, onResetTime
       <div className="relative p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3.5">
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold ${limited ? 'bg-[hsl(var(--accent)/.18)] text-[hsl(28_76%_34%)]' : 'bg-[hsl(var(--primary)/.13)] text-[hsl(var(--primary))]'}`}>{initials(profile.name)}</div>
-            <div className="min-w-0"><h3 className="truncate text-[15px] font-extrabold tracking-[-.02em]">{profile.name}</h3><div className="mt-1 flex items-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))]"><Laptop2 size={12} /> {profile.ide}</div></div>
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] text-[12px] font-extrabold ${limited ? 'bg-[hsl(var(--accent)/.18)] text-[hsl(28_76%_34%)]' : 'bg-[hsl(var(--primary)/.13)] text-[hsl(var(--primary))]'}`}>{initials(profileDisplayName(profile))}</div>
+            <div className="min-w-0"><h3 className="truncate text-[15px] font-extrabold tracking-[-.02em]">{profileDisplayName(profile)}</h3><div className="mt-1 flex items-center gap-1.5 text-[11px] text-[hsl(var(--muted-foreground))]"><Laptop2 size={12} /> {profile.ide}</div></div>
           </div>
-          <div className="flex items-center gap-1"><StatusBadge limited={limited} /><button type="button" onClick={onEdit} className="focus-ring ml-1 rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] opacity-60 transition-all hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] group-hover:opacity-100" aria-label={`Edit ${profile.name}`}><MoreHorizontal size={17} /></button></div>
+          <div className="flex items-center gap-1"><StatusBadge limited={limited} /><button type="button" onClick={onEdit} className="focus-ring ml-1 rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] opacity-60 transition-all hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] group-hover:opacity-100" aria-label={`Edit ${profileDisplayName(profile)}`}><MoreHorizontal size={17} /></button></div>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 border-y border-[hsl(var(--border)/.7)] py-4">
           <div className="min-w-0"><div className="mono mb-1.5 text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">LLM / model</div><div className="flex items-center gap-1.5 truncate text-[12px] font-bold"><Sparkles size={13} className="shrink-0 text-[hsl(var(--accent))]" />{profile.model}</div></div>
           <div className="min-w-0"><div className="mono mb-1.5 text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Email</div><div className="flex min-w-0 items-center gap-1.5 truncate text-[12px] font-semibold text-[hsl(var(--muted-foreground))]"><Mail size={12} /><span className="truncate">{profile.email}</span></div></div>
           {profile.accountId && <div className="col-span-2 min-w-0"><div className="mono mb-1.5 text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Account ID</div><div className="truncate text-[11px] font-semibold text-[hsl(var(--muted-foreground))]">{profile.accountId}</div></div>}
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <TimerPanel kind="token" profile={profile} now={now} onStart={() => onStartTimer('token')} onReset={() => onResetTimer('token')} />
+        <div className={`mt-4 grid gap-3 ${profile.tokenTimerEnabled ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+          {profile.tokenTimerEnabled && <TimerPanel kind="token" profile={profile} now={now} onStart={() => onStartTimer('token')} onReset={() => onResetTimer('token')} />}
           <TimerPanel kind="quota" profile={profile} now={now} onStart={() => onStartTimer('quota')} onReset={() => onResetTimer('quota')} />
         </div>
         <div className="mt-3 flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -236,6 +237,7 @@ type FormState = {
   accountId: string;
   email: string;
   model: string;
+  tokenTimerEnabled: boolean;
   tokenDays: number;
   tokenMinutes: number;
   quotaDays: number;
@@ -243,8 +245,8 @@ type FormState = {
 };
 
 const blankForm: FormState = {
-  ide: '', name: '', accountId: '', email: '', model: '',
-  tokenDays: 0, tokenMinutes: 60, quotaDays: 0, quotaMinutes: 60,
+  ide: '', name: '', accountId: '', email: '', model: '', tokenTimerEnabled: false,
+  tokenDays: 0, tokenMinutes: 60, quotaDays: 0, quotaMinutes: 0,
 };
 
 function DurationFields({ label, days, minutes, onDays, onMinutes, testId }: {
@@ -267,7 +269,7 @@ function ProfileModal({ profile, onClose, onSave }: {
 }) {
   const [form, setForm] = useState<FormState>(profile ? {
     ide: profile.ide, name: profile.name, accountId: profile.accountId,
-    email: profile.email, model: profile.model,
+    email: profile.email, model: profile.model, tokenTimerEnabled: profile.tokenTimerEnabled,
     tokenDays: Math.floor(profile.tokenRefreshDurationMinutes / 1440),
     tokenMinutes: profile.tokenRefreshDurationMinutes % 1440,
     quotaDays: Math.floor(profile.quotaRefreshDurationMinutes / 1440),
@@ -275,21 +277,21 @@ function ProfileModal({ profile, onClose, onSave }: {
   } : blankForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const update = (key: keyof FormState, value: string | number) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key: keyof FormState, value: string | number | boolean) => setForm((current) => ({ ...current, [key]: value }));
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!form.ide.trim() || !form.name.trim() || !form.email.trim() || !form.model.trim()) {
-      setError('Fill in the IDE, profile name, email, and model to continue.');
+    if (!form.ide.trim() || !form.email.trim() || !form.model.trim()) {
+      setError('Fill in the IDE, email, and model to continue.');
       return;
     }
-    const durations = [form.tokenDays, form.tokenMinutes, form.quotaDays, form.quotaMinutes];
+    const durations = [form.quotaDays, form.quotaMinutes, ...(form.tokenTimerEnabled ? [form.tokenDays, form.tokenMinutes] : [])];
     if (durations.some((value) => !Number.isSafeInteger(value) || value < 0)
-      || form.tokenDays > 365000 || form.quotaDays > 365000
-      || form.tokenMinutes > 1439 || form.quotaMinutes > 1439
-      || (form.tokenDays === 0 && form.tokenMinutes === 0)
+      || (form.tokenTimerEnabled && form.tokenDays > 365000) || form.quotaDays > 365000
+      || (form.tokenTimerEnabled && form.tokenMinutes > 1439) || form.quotaMinutes > 1439
+      || (form.tokenTimerEnabled && form.tokenDays === 0 && form.tokenMinutes === 0)
       || (form.quotaDays === 0 && form.quotaMinutes === 0)) {
-      setError('Each timer needs a duration of at least one minute. Minutes must be between 0 and 1439.');
+      setError('The quota timer needs a duration of at least one minute. Enabled timer minutes must be between 0 and 1439.');
       return;
     }
     setError('');
@@ -309,19 +311,20 @@ function ProfileModal({ profile, onClose, onSave }: {
         <div className="mb-7 flex items-start justify-between"><div><div className="mono mb-2 text-[9px] uppercase tracking-[.18em] text-[hsl(var(--primary))]">{profile ? 'Update profile' : 'New access profile'}</div><h2 id="profile-modal-title" className="text-[25px] font-extrabold tracking-[-.05em]">{profile ? 'Tune this connection' : 'Add an account and its timers'}</h2><p className="mt-1.5 text-[12px] text-[hsl(var(--muted-foreground))]">Set independent token refresh and quota reset windows.</p></div><button type="button" onClick={onClose} className="focus-ring rounded-xl p-2 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]" aria-label="Close"><X size={18} /></button></div>
         <form onSubmit={submit} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">IDE / app</span><div className="relative"><Code2 className="pointer-events-none absolute left-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /><input value={form.ide} onChange={(event) => update('ide', event.target.value)} placeholder="e.g. Cursor" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] pl-10 pr-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></div></label>
-            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Profile name</span><input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="e.g. Main build account" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></label>
+            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">IDE / app <span className="text-[hsl(var(--destructive))]">*</span></span><div className="relative"><Code2 className="pointer-events-none absolute left-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /><input required value={form.ide} onChange={(event) => update('ide', event.target.value)} placeholder="e.g. Cursor" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] pl-10 pr-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></div></label>
+            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Profile name <span className="normal-case tracking-normal">(optional)</span></span><input value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="Defaults to email or model" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></label>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Email identity</span><div className="relative"><Mail className="pointer-events-none absolute left-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /><input type="email" value={form.email} onChange={(event) => update('email', event.target.value)} placeholder="you@example.com" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-10 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></div></label>
+            <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Email identity <span className="text-[hsl(var(--destructive))]">*</span></span><div className="relative"><Mail className="pointer-events-none absolute left-3 top-3.5 text-[hsl(var(--muted-foreground))]" size={15} /><input required type="email" value={form.email} onChange={(event) => update('email', event.target.value)} placeholder="you@example.com" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-10 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></div></label>
             <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Account ID <span className="normal-case tracking-normal">(optional)</span></span><input value={form.accountId} onChange={(event) => update('accountId', event.target.value)} placeholder="e.g. workspace or account ID" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></label>
           </div>
-          <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">LLM / model</span><input value={form.model} onChange={(event) => update('model', event.target.value)} placeholder="e.g. Claude, GPT-4.1, Gemini" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></label>
-          <div className="grid gap-4 rounded-2xl border border-[hsl(var(--border)/.7)] bg-[hsl(var(--background)/.4)] p-4 sm:grid-cols-2">
-            <DurationFields label="Token refresh window" days={form.tokenDays} minutes={form.tokenMinutes} onDays={(value) => update('tokenDays', value)} onMinutes={(value) => update('tokenMinutes', value)} testId="input-token-duration" />
-            <DurationFields label="Quota reset window" days={form.quotaDays} minutes={form.quotaMinutes} onDays={(value) => update('quotaDays', value)} onMinutes={(value) => update('quotaMinutes', value)} testId="input-quota-duration" />
+          <label className="block"><span className="mono mb-2 block text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">LLM / model <span className="text-[hsl(var(--destructive))]">*</span></span><input required value={form.model} onChange={(event) => update('model', event.target.value)} placeholder="e.g. Claude, GPT-4.1, Gemini" className="focus-ring h-11 w-full rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background)/.55)] px-3 text-[12px] font-bold placeholder:font-normal placeholder:text-[hsl(var(--muted-foreground))]" /></label>
+          <div className="space-y-4 rounded-2xl border border-[hsl(var(--border)/.7)] bg-[hsl(var(--background)/.4)] p-4">
+            <div className="flex items-center justify-between gap-4"><div><div className="mono text-[9px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">Token refresh timer</div><p className="mt-1 text-[10px] text-[hsl(var(--muted-foreground))]">Optional. Enable it when this account has a separate token window.</p></div><button type="button" role="switch" aria-label="Enable token refresh timer" aria-checked={form.tokenTimerEnabled} onClick={() => update('tokenTimerEnabled', !form.tokenTimerEnabled)} className={`focus-ring relative h-6 w-11 shrink-0 rounded-full transition-colors ${form.tokenTimerEnabled ? 'bg-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted-foreground)/.35)]'}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${form.tokenTimerEnabled ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
+            {form.tokenTimerEnabled && <DurationFields label="Token refresh window" days={form.tokenDays} minutes={form.tokenMinutes} onDays={(value) => update('tokenDays', value)} onMinutes={(value) => update('tokenMinutes', value)} testId="input-token-duration" />}
+            <div className="border-t border-[hsl(var(--border)/.7)] pt-4"><DurationFields label="Quota reset window *" days={form.quotaDays} minutes={form.quotaMinutes} onDays={(value) => update('quotaDays', value)} onMinutes={(value) => update('quotaMinutes', value)} testId="input-quota-duration" /></div>
           </div>
-          <p className="-mt-3 text-[10px] text-[hsl(var(--muted-foreground))]">Timers start when you press their Start button. This app does not read provider usage automatically.</p>
+          <p className="-mt-3 text-[10px] text-[hsl(var(--muted-foreground))]">Quota tracking is always enabled. Timers start when you press their Start button; this app does not read provider usage automatically.</p>
           {error && <div role="alert" className="rounded-xl bg-[hsl(var(--destructive)/.1)] px-3 py-2 text-[11px] font-bold text-[hsl(var(--destructive))]">{error}</div>}
           <div className="flex gap-3 pt-1"><button type="button" onClick={onClose} className="focus-ring flex-1 rounded-xl border border-[hsl(var(--border))] py-3 text-[12px] font-extrabold text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))]">Cancel</button><button type="submit" disabled={saving} className="focus-ring flex-[1.5] rounded-xl bg-[hsl(var(--primary))] py-3 text-[12px] font-extrabold text-[hsl(var(--primary-foreground))] shadow-[0_8px_18px_hsl(var(--primary)/.2)] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60"><Check size={15} className="mr-1 inline" />{saving ? 'Saving…' : profile ? 'Save changes' : 'Add profile'}</button></div>
         </form>
@@ -338,7 +341,7 @@ function DeleteModal({ profile, onClose, onConfirm }: { profile: Profile; onClos
       toast({ title: 'Could not remove profile', description: error instanceof Error ? error.message : 'Local storage failed.' });
     } finally { setDeleting(false); }
   }
-  return <div className="fixed inset-0 z-30 flex items-center justify-center bg-[hsl(205_34%_11%/.48)] p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="delete-title"><div className="animate-rise w-full max-w-[390px] rounded-3xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-7 shadow-[0_24px_80px_hsl(205_34%_11%/.25)]"><div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--destructive)/.1)] text-[hsl(var(--destructive))]"><Trash2 size={19} /></div><h2 id="delete-title" className="text-[21px] font-extrabold tracking-[-.04em]">Remove this profile?</h2><p className="mt-2 text-[12px] leading-relaxed text-[hsl(var(--muted-foreground))]"><strong className="text-[hsl(var(--foreground))]">{profile.name}</strong> and its timers will be removed from this browser.</p><div className="mt-7 flex gap-3"><button type="button" onClick={onClose} className="focus-ring flex-1 rounded-xl border border-[hsl(var(--border))] py-3 text-[12px] font-extrabold text-[hsl(var(--muted-foreground))]">Keep it</button><button type="button" onClick={() => void confirm()} disabled={deleting} className="focus-ring flex-1 rounded-xl bg-[hsl(var(--destructive))] py-3 text-[12px] font-extrabold text-[hsl(var(--destructive-foreground))] disabled:opacity-60">{deleting ? 'Removing…' : 'Remove'}</button></div></div></div>;
+  return <div className="fixed inset-0 z-30 flex items-center justify-center bg-[hsl(205_34%_11%/.48)] p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="delete-title"><div className="animate-rise w-full max-w-[390px] rounded-3xl border border-[hsl(var(--card-border))] bg-[hsl(var(--card))] p-7 shadow-[0_24px_80px_hsl(205_34%_11%/.25)]"><div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--destructive)/.1)] text-[hsl(var(--destructive))]"><Trash2 size={19} /></div><h2 id="delete-title" className="text-[21px] font-extrabold tracking-[-.04em]">Remove this profile?</h2><p className="mt-2 text-[12px] leading-relaxed text-[hsl(var(--muted-foreground))]"><strong className="text-[hsl(var(--foreground))]">{profileDisplayName(profile)}</strong> and its timers will be removed from this browser.</p><div className="mt-7 flex gap-3"><button type="button" onClick={onClose} className="focus-ring flex-1 rounded-xl border border-[hsl(var(--border))] py-3 text-[12px] font-extrabold text-[hsl(var(--muted-foreground))]">Keep it</button><button type="button" onClick={() => void confirm()} disabled={deleting} className="focus-ring flex-1 rounded-xl bg-[hsl(var(--destructive))] py-3 text-[12px] font-extrabold text-[hsl(var(--destructive-foreground))] disabled:opacity-60">{deleting ? 'Removing…' : 'Remove'}</button></div></div></div>;
 }
 
 function ActivityModal({ entries, onClose, onClear }: { entries: ActivityEntry[]; onClose: () => void; onClear: () => Promise<void> }) {
@@ -481,19 +484,20 @@ function Home() {
     if (loading) return;
     profiles.forEach((profile) => {
       (['token', 'quota'] as const).forEach((kind) => {
+        if (kind === 'token' && !profile.tokenTimerEnabled) return;
         const until = timerUntil(profile, kind);
         if (!until || until > now) return;
         const key = `${profile.id}:${kind}:${until}`;
         if (handledExpirations.current.has(key)) return;
         handledExpirations.current.add(key);
         const entry: ActivityEntry = {
-          id: `expired:${profile.id}:${kind}:${until}`, profileId: profile.id, profileName: profile.name,
+          id: `expired:${profile.id}:${kind}:${until}`, profileId: profile.id, profileName: profileDisplayName(profile),
           action: 'timer-expired', timerKind: kind, timerEndsAt: until, occurredAt: now,
         };
         void appendActivity(entry).catch((error) => toast({ title: 'Could not save timer activity', description: error instanceof Error ? error.message : 'Local storage failed.' }));
         if (preferences.notificationsEnabled && until >= pageStartedAt.current && 'Notification' in window && Notification.permission === 'granted') {
           try {
-            new Notification('Token Manager · Ready', { body: `${profile.name}: ${kind === 'token' ? 'token refresh' : 'quota reset'} timer completed.` });
+            new Notification('Token Manager · Ready', { body: `${profileDisplayName(profile)}: ${kind === 'token' ? 'token refresh' : 'quota reset'} timer completed.` });
           } catch {
             // Notification delivery can fail when the browser revokes permission mid-session.
           }
@@ -516,21 +520,23 @@ function Home() {
     const existing = modalProfile && profiles.find((profile) => profile.id === modalProfile.id);
     const profile: Profile = {
       id: existing?.id ?? createId(),
-      ide: form.ide, name: form.name, accountId: form.accountId,
+      ide: form.ide, name: form.name.trim(), accountId: form.accountId,
       email: form.email, model: form.model,
+      tokenTimerEnabled: form.tokenTimerEnabled,
       tokenRefreshDurationMinutes: form.tokenDays * 1440 + form.tokenMinutes,
       quotaRefreshDurationMinutes: form.quotaDays * 1440 + form.quotaMinutes,
-      tokenRefreshUntil: existing?.tokenRefreshUntil ?? null,
+      tokenRefreshUntil: form.tokenTimerEnabled ? existing?.tokenRefreshUntil ?? null : null,
       quotaRefreshUntil: existing?.quotaRefreshUntil ?? null,
       createdAt: existing?.createdAt ?? Date.now(),
     };
     const action: ActivityAction = existing ? 'profile-updated' : 'profile-added';
-    const entry: ActivityEntry = { id: createId(), profileId: profile.id, profileName: profile.name, action, occurredAt: Date.now() };
+    const entry: ActivityEntry = { id: createId(), profileId: profile.id, profileName: profileDisplayName(profile), action, occurredAt: Date.now() };
     if (existing) {
       await updateProfileWithActivity(profile.id, {
         ide: profile.ide, name: profile.name, accountId: profile.accountId,
-        email: profile.email, model: profile.model,
+        email: profile.email, model: profile.model, tokenTimerEnabled: profile.tokenTimerEnabled,
         tokenRefreshDurationMinutes: profile.tokenRefreshDurationMinutes,
+        tokenRefreshUntil: profile.tokenRefreshUntil,
         quotaRefreshDurationMinutes: profile.quotaRefreshDurationMinutes,
       }, entry);
     } else {
@@ -538,31 +544,34 @@ function Home() {
     }
     await reloadData();
     setModalProfile(undefined);
-    toast({ title: existing ? 'Profile updated' : 'Profile added', description: `${profile.name} is saved in this browser.` });
+    toast({ title: existing ? 'Profile updated' : 'Profile added', description: `${profileDisplayName(profile)} is saved in this browser.` });
   }
 
   async function startTimer(profile: Profile, kind: TimerKind) {
+    if (kind === 'token' && !profile.tokenTimerEnabled) return;
     const until = Date.now() + timerDuration(profile, kind) * 60_000;
-    const entry: ActivityEntry = { id: createId(), profileId: profile.id, profileName: profile.name, action: 'timer-started', timerKind: kind, timerEndsAt: until, occurredAt: Date.now() };
+    const displayName = profileDisplayName(profile);
+    const entry: ActivityEntry = { id: createId(), profileId: profile.id, profileName: displayName, action: 'timer-started', timerKind: kind, timerEndsAt: until, occurredAt: Date.now() };
     await updateProfileWithActivity(profile.id, { [kind === 'token' ? 'tokenRefreshUntil' : 'quotaRefreshUntil']: until }, entry);
     await reloadData();
-    toast({ title: `${kind === 'token' ? 'Token' : 'Quota'} timer started`, description: `${profile.name} · ${formatDuration(timerDuration(profile, kind))}` });
+    toast({ title: `${kind === 'token' ? 'Token' : 'Quota'} timer started`, description: `${displayName} · ${formatDuration(timerDuration(profile, kind))}` });
   }
 
   async function resetTimer(profile: Profile, kind: TimerKind) {
-    const entry: ActivityEntry = { id: createId(), profileId: profile.id, profileName: profile.name, action: 'timer-reset', timerKind: kind, occurredAt: Date.now() };
+    const displayName = profileDisplayName(profile);
+    const entry: ActivityEntry = { id: createId(), profileId: profile.id, profileName: displayName, action: 'timer-reset', timerKind: kind, occurredAt: Date.now() };
     await updateProfileWithActivity(profile.id, { [kind === 'token' ? 'tokenRefreshUntil' : 'quotaRefreshUntil']: null }, entry);
     await reloadData();
-    toast({ title: `${kind === 'token' ? 'Token' : 'Quota'} timer reset`, description: `${profile.name} is ready.` });
+    toast({ title: `${kind === 'token' ? 'Token' : 'Quota'} timer reset`, description: `${displayName} is ready.` });
   }
 
   async function deleteProfile() {
     if (!profileToDelete) return;
     const profile = profileToDelete;
-    await removeProfileWithActivity(profile, { id: createId(), profileId: profile.id, profileName: profile.name, action: 'profile-deleted', occurredAt: Date.now() });
+    await removeProfileWithActivity(profile, { id: createId(), profileId: profile.id, profileName: profileDisplayName(profile), action: 'profile-deleted', occurredAt: Date.now() });
     await reloadData();
     setProfileToDelete(null);
-    toast({ title: 'Profile removed', description: `${profile.name} was removed from this browser.` });
+    toast({ title: 'Profile removed', description: `${profileDisplayName(profile)} was removed from this browser.` });
   }
 
   async function changeNotifications(enabled: boolean) {
