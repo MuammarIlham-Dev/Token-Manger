@@ -119,6 +119,7 @@
 .pulse-dot { animation: pulse-dot 2.1s ease-in-out infinite; }
 .mono { font-family: var(--app-font-mono); }
 .card-shadow { box-shadow: var(--shadow-card); }
+.profile-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 21.25rem), 1fr)); align-items: start; }
 .metric-card { box-shadow: var(--shadow-card); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
 .metric-card:hover { transform: translateY(-2px); border-color: hsl(var(--primary) / .24); box-shadow: 0 16px 36px hsl(220 35% 18% / .08); }
 .empty-state { background: linear-gradient(145deg, hsl(var(--card) / .92), hsl(var(--primary) / .025)); }
